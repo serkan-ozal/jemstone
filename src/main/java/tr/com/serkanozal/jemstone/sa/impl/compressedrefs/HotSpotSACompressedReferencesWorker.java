@@ -8,6 +8,8 @@ import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentUtil;
 
+import static tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter.NoHotSpotServiceabilityAgentParameter;
+
 /**
  * {@link HotSpotServiceabilityAgentWorker} implementation to find compressed
  * reference informations.
@@ -16,10 +18,12 @@ import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentUtil;
  */
 @SuppressWarnings("serial")
 public class HotSpotSACompressedReferencesWorker 
-        implements HotSpotServiceabilityAgentWorker<HotSpotSACompressedReferencesResult> {
+        implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter,  
+                                                    HotSpotSACompressedReferencesResult> {
 
     @Override
-    public HotSpotSACompressedReferencesResult run(HotSpotServiceabilityAgentContext context) {
+    public HotSpotSACompressedReferencesResult run(HotSpotServiceabilityAgentContext context,
+                                                   NoHotSpotServiceabilityAgentParameter param) {
         try {
             Class<?> universeClass = HotSpotServiceabilityAgentUtil.getUniverseClass();
             Class<?> vmClass = HotSpotServiceabilityAgentUtil.getVmClass();

@@ -1,16 +1,12 @@
-/**
- * @author SERKAN OZAL
- *         
- *         E-Mail: <a href="mailto:serkanozal86@hotmail.com">serkanozal86@hotmail.com</a>
- *         GitHub: <a>https://github.com/serkan-ozal</a>
- */
-
 package tr.com.serkanozal.jemstone;
+
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
 
 public class Jemstone {
 
 	public static void main(String[] args) {
-		
+		System.out.println(HotSpotServiceabilityAgentManager.details());
+		System.out.println(HotSpotServiceabilityAgentManager.getCompressedReferences());
 	}
 	
 }

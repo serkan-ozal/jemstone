@@ -1,4 +1,4 @@
-package tr.com.serkanozal.jemstone;
+package tr.com.serkanozal.jemstone.sa;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -21,10 +21,6 @@ import java.util.List;
 import sun.jvm.hotspot.HotSpotAgent;
 import sun.jvm.hotspot.runtime.VM;
 import sun.management.VMManagement;
-
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentUtil;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
@@ -53,7 +49,7 @@ import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedRefe
  * @author Serkan Ozal
  */
 @SuppressWarnings("restriction")
-public class HotspotServiceabilityAgentSupport {
+public class HotSpotServiceabilityAgentManager {
 
     private static final String SKIP_HOTSPOT_SA_INIT_FLAG = "jemstone.skipHotspotSAInit";
     private static final String SKIP_HOTSPOT_SA_ATTACH_FLAG = "jemstone.skipHotspotSAAttach";
@@ -141,16 +137,15 @@ public class HotspotServiceabilityAgentSupport {
             if (active) {
                 try {
                     // First check attempt for HotSpot agent connection without "sudo" command
-                    executeOnHotspotSAInternal(currentProcId, classpathForAgentProc, false, null,
+                    executeOnHotSpotSAInternal(currentProcId, classpathForAgentProc, false, null, null,
                                                DEFAULT_TIMEOUT_IN_MSECS);
                 } catch (ProcessAttachFailedException e1) {
                     // Possibly because of insufficient privilege. So "sudo" is required.
                     // So if "sudo" command is valid on OS and user allows "sudo" usage
-                    if (isSudoValidOS()
-                            && Boolean.getBoolean(TRY_WITH_SUDO_FLAG)) {
+                    if (isSudoValidOS() && Boolean.getBoolean(TRY_WITH_SUDO_FLAG)) {
                         try {
                             // Second check attempt for HotSpot agent connection but this time with "sudo" command
-                            executeOnHotspotSAInternal(currentProcId, classpathForAgentProc, true, null,
+                            executeOnHotSpotSAInternal(currentProcId, classpathForAgentProc, true, null, null,
                                                        DEFAULT_TIMEOUT_IN_MSECS);
 
                             sudoNeeded = true;
@@ -179,7 +174,7 @@ public class HotspotServiceabilityAgentSupport {
         sudoRequired = sudoNeeded;
     }
 
-    private HotspotServiceabilityAgentSupport() {
+    private HotSpotServiceabilityAgentManager() {
 
     }
 
@@ -268,18 +263,21 @@ public class HotspotServiceabilityAgentSupport {
         }
     }
 
-    private static <R extends HotSpotServiceabilityAgentResult> R executeOnHotspotSAInternal(
-            HotSpotServiceabilityAgentWorker<R> worker, int timeoutInMsecs) {
+    private static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSAInternal(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
+            int timeoutInMsecs) {
         checkEnable();
 
-        return executeOnHotspotSAInternal(processId, classpathForAgent,
-                                          sudoRequired, worker, timeoutInMsecs);
+        return executeOnHotSpotSAInternal(processId, classpathForAgent, sudoRequired, 
+                                          worker, param, timeoutInMsecs);
     }
 
     @SuppressWarnings("unchecked")
-    private static <R extends HotSpotServiceabilityAgentResult> R executeOnHotspotSAInternal(
-            int procId, String classpath, boolean sudoRequired,
-            HotSpotServiceabilityAgentWorker<R> worker, int timeoutInMsecs) {
+    private static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSAInternal(int procId, String classpath, boolean sudoRequired,
+            HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeoutInMsecs) {
         // Generate required arguments to create an external Java process
         List<String> args = new ArrayList<String>();
         if (sudoRequired) {
@@ -290,7 +288,7 @@ public class HotspotServiceabilityAgentSupport {
         args.add("-D" + SKIP_HOTSPOT_SA_INIT_FLAG + "=true");
         args.add("-cp");
         args.add(classpath);
-        args.add(HotspotServiceabilityAgentSupport.class.getName());
+        args.add(HotSpotServiceabilityAgentManager.class.getName());
 
         ObjectInputStream in = null;
         ObjectOutputStream out = null;
@@ -300,8 +298,8 @@ public class HotspotServiceabilityAgentSupport {
             // Create an external Java process to connect this process as HotSpot agent
             agentProcess = new ProcessBuilder(args).start();
 
-            HotSpotServiceabilityAgentRequest<R> request = 
-                    new HotSpotServiceabilityAgentRequest<R>(procId, worker, timeoutInMsecs);
+            HotSpotServiceabilityAgentRequest<P, R> request = 
+                    new HotSpotServiceabilityAgentRequest<P, R>(procId, worker, param, timeoutInMsecs);
 
             // Get input, output and error streams
             InputStream is = agentProcess.getInputStream();
@@ -348,7 +346,6 @@ public class HotspotServiceabilityAgentSupport {
                     Throwable error = response.getError();
                     throw new RuntimeException(error.getMessage(), error);
                 }
-
                 return response.getResult();
             } else {
                 return null;
@@ -397,24 +394,28 @@ public class HotspotServiceabilityAgentSupport {
      * timeout and {@link HotSpotServiceabilityAgentWorker} to execute.
      */
     @SuppressWarnings("serial")
-    private static class HotSpotServiceabilityAgentRequest<R extends HotSpotServiceabilityAgentResult> 
+    private static class HotSpotServiceabilityAgentRequest<P extends HotSpotServiceabilityAgentParameter, 
+                                                           R extends HotSpotServiceabilityAgentResult> 
             implements Serializable {
 
         private final int processId;
-        private final HotSpotServiceabilityAgentWorker<R> worker;
+        private final HotSpotServiceabilityAgentWorker<P, R> worker;
+        private final P param;
         private final int timeout;
 
         private HotSpotServiceabilityAgentRequest(int processId,
-                HotSpotServiceabilityAgentWorker<R> worker) {
+                HotSpotServiceabilityAgentWorker<P, R> worker, P param) {
             this.processId = processId;
             this.worker = worker;
+            this.param = param;
             this.timeout = DEFAULT_TIMEOUT_IN_MSECS;
         }
 
         private HotSpotServiceabilityAgentRequest(int processId,
-                HotSpotServiceabilityAgentWorker<R> worker, int timeout) {
+                HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeout) {
             this.processId = processId;
             this.worker = worker;
+            this.param = param;
             this.timeout = timeout;
         }
 
@@ -422,8 +423,12 @@ public class HotspotServiceabilityAgentSupport {
             return processId;
         }
 
-        public HotSpotServiceabilityAgentWorker<R> getWorker() {
+        public HotSpotServiceabilityAgentWorker<P, R> getWorker() {
             return worker;
+        }
+        
+        public P getParameter() {
+            return param;
         }
 
         public int getTimeout() {
@@ -463,7 +468,9 @@ public class HotspotServiceabilityAgentSupport {
     }
 
     @SuppressWarnings("unchecked")
-    public static <R extends HotSpotServiceabilityAgentResult> void main(final String[] args) {
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    void main(final String[] args) {
         HotSpotAgent hotSpotAgent = null;
         VM vm = null;
         HotSpotServiceabilityAgentResponse<R> response = null;
@@ -479,7 +486,8 @@ public class HotspotServiceabilityAgentSupport {
             System.setProperty("sun.jvm.hotspot.debugger.useProcDebugger", "true");
             System.setProperty("sun.jvm.hotspot.debugger.useWindbgDebugger", "true");
 
-            final HotSpotServiceabilityAgentRequest<R> request = (HotSpotServiceabilityAgentRequest<R>) in.readObject();
+            final HotSpotServiceabilityAgentRequest<P, R> request = 
+                    (HotSpotServiceabilityAgentRequest<P, R>) in.readObject();
             hotSpotAgent = HotSpotServiceabilityAgentUtil.getHotSpotAgentInstance();
             final HotSpotAgent agent = hotSpotAgent;
             
@@ -509,10 +517,11 @@ public class HotspotServiceabilityAgentSupport {
 
             // Check about if VM is initialized and ready to use
             if (vm != null) {
-                final HotSpotServiceabilityAgentWorker<R> worker = request.getWorker();
+                final HotSpotServiceabilityAgentWorker<P, R> worker = request.getWorker();
+                final P param = request.getParameter();
                 if (worker != null) {
                     // Execute worker and gets its result
-                    final R result = worker.run(new HotSpotServiceabilityAgentContext(hotSpotAgent, vm));
+                    final R result = worker.run(new HotSpotServiceabilityAgentContext(hotSpotAgent, vm), param);
                     response = new HotSpotServiceabilityAgentResponse<R>(result);
                 }
             } else {
@@ -551,7 +560,7 @@ public class HotspotServiceabilityAgentSupport {
     public static boolean isEnable() {
         return enable;
     }
-
+    
     /**
      * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
      * agent process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
@@ -560,12 +569,29 @@ public class HotspotServiceabilityAgentSupport {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     @SuppressWarnings("unchecked")
-    public static <R extends HotSpotServiceabilityAgentResult> R executeOnHotspotSA(
-            Class<? extends HotSpotServiceabilityAgentWorker<R>> workerClass) {
-        return executeOnHotspotSA((HotSpotServiceabilityAgentWorker<R>) createWorkerInstance(workerClass), 
-                                  DEFAULT_TIMEOUT_IN_MSECS);
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass) {
+        return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
+                                  null, DEFAULT_TIMEOUT_IN_MSECS);
     }
 
+    /**
+     * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
+     * agent process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
+     * 
+     * @param workerClass the type of {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param param       the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
+     */
+    @SuppressWarnings("unchecked")
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param) {
+        return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
+                                  param, DEFAULT_TIMEOUT_IN_MSECS);
+    }
+    
     /**
      * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
      * process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
@@ -573,11 +599,26 @@ public class HotspotServiceabilityAgentSupport {
      * @param worker the {@link HotSpotServiceabilityAgentWorker} instance to execute
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
-    public static <R extends HotSpotServiceabilityAgentResult> R executeOnHotspotSA(
-            HotSpotServiceabilityAgentWorker<R> worker) {
-        return executeOnHotspotSAInternal(worker, DEFAULT_TIMEOUT_IN_MSECS);
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker) {
+        return executeOnHotSpotSAInternal(worker, null, DEFAULT_TIMEOUT_IN_MSECS);
     }
 
+    /**
+     * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
+     * process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
+     * 
+     * @param worker the {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param param the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
+     */
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param) {
+        return executeOnHotSpotSAInternal(worker, param, DEFAULT_TIMEOUT_IN_MSECS);
+    }
+    
     /**
      * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
      * agent process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
@@ -588,10 +629,31 @@ public class HotspotServiceabilityAgentSupport {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     @SuppressWarnings("unchecked")
-    public static <R extends HotSpotServiceabilityAgentResult> R executeOnHotspotSA(
-            Class<? extends HotSpotServiceabilityAgentWorker<R>> workerClass, int timeoutInMsecs) {
-        return executeOnHotspotSA((HotSpotServiceabilityAgentWorker<R>) createWorkerInstance(workerClass), 
-                                  timeoutInMsecs);
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
+            int timeoutInMsecs) {
+        return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
+                                  null, timeoutInMsecs);
+    }
+
+    /**
+     * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
+     * agent process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
+     *
+     * @param workerClass    the type of {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param param          the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
+     * @param timeoutInMsecs the timeout in milliseconds to wait at most for terminating
+     *                       connection between current process and HotSpot agent process.
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
+     */
+    @SuppressWarnings("unchecked")
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
+            P param, int timeoutInMsecs) {
+        return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
+                                  param, timeoutInMsecs);
     }
 
     /**
@@ -603,9 +665,26 @@ public class HotspotServiceabilityAgentSupport {
      *                       connection between current process and HotSpot agent process.
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
-    public static <R extends HotSpotServiceabilityAgentResult> R executeOnHotspotSA(
-            HotSpotServiceabilityAgentWorker<R> worker, int timeoutInMsecs) {
-        return executeOnHotspotSAInternal(worker, timeoutInMsecs);
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  int timeoutInMsecs) {
+        return executeOnHotSpotSAInternal(worker, null, timeoutInMsecs);
+    }
+    
+    /**
+     * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
+     * process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
+     * 
+     * @param worker         the {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param param          the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
+     * @param timeoutInMsecs the timeout in milliseconds to wait at most for terminating
+     *                       connection between current process and HotSpot agent process.
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
+     */
+    public static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeoutInMsecs) {
+        return executeOnHotSpotSAInternal(worker, param, timeoutInMsecs);
     }
 
     /**
@@ -616,7 +695,8 @@ public class HotspotServiceabilityAgentSupport {
      *         {@link HotSpotSACompressedReferencesResult} instance
      */
     public static HotSpotSACompressedReferencesResult getCompressedReferences() {
-        return executeOnHotspotSA(HotSpotSACompressedReferencesWorker.class);
+        return executeOnHotSpotSA(HotSpotSACompressedReferencesWorker.class, 
+                                  HotSpotServiceabilityAgentParameter.VOID);
     }
 
     /**
