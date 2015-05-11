@@ -28,87 +28,87 @@ import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentManagerImpl;
 
 public class Jemstone {
 
-	private static HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager = 
-	        HotSpotServiceabilityAgentManagerImpl.getInstance();
-	
-	public static HotSpotServiceabilityAgentManager getHotSpotServiceabilityAgentManager() {
+    private static HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager = 
+            HotSpotServiceabilityAgentManagerImpl.getInstance();
+
+    public static HotSpotServiceabilityAgentManager getHotSpotServiceabilityAgentManager() {
         return hotSpotServiceabilityAgentManager;
     }
-	
-	public static void setHotSpotServiceabilityAgentManager(
+
+    public static void setHotSpotServiceabilityAgentManager(
             HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager) {
         Jemstone.hotSpotServiceabilityAgentManager = hotSpotServiceabilityAgentManager;
     }
-    
+
     public static void main(String[] args) {
         HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager = getHotSpotServiceabilityAgentManager();
-        
-		System.out.println(hotSpotServiceabilityAgentManager.details());
-		
-		/////////////////////////////////////////////////////////////////////////////////
-		
-		System.out.println(hotSpotServiceabilityAgentManager.getCompressedReferences());
-		
-		/////////////////////////////////////////////////////////////////////////////////
-		
-		System.out.println("Before instance creation: " + 
-		                   hotSpotServiceabilityAgentManager.getInstanceCount(Date.class));
-		Date[] array = new Date[1000];
-		for (int i = 0; i < array.length; i++) {
-		    array[i] = new Date();
-		}
-		System.out.println("After instance creation: " + 
-		                   hotSpotServiceabilityAgentManager.getInstanceCount(Date.class));
-		
-		/////////////////////////////////////////////////////////////////////////////////
-		
-		System.out.println(hotSpotServiceabilityAgentManager.executeOnHotSpotSA(HeapSummaryWorker.class));
-	}
-	
+
+        System.out.println(hotSpotServiceabilityAgentManager.details());
+
+        // ///////////////////////////////////////////////////////////////////////////////
+
+        System.out.println(hotSpotServiceabilityAgentManager.getCompressedReferences());
+
+        // ///////////////////////////////////////////////////////////////////////////////
+
+        System.out.println("Before instance creation: " + 
+                           hotSpotServiceabilityAgentManager.getInstanceCount(Date.class));
+        Date[] array = new Date[1000];
+        for (int i = 0; i < array.length; i++) {
+            array[i] = new Date();
+        }
+        System.out.println("After instance creation: " + 
+                           hotSpotServiceabilityAgentManager.getInstanceCount(Date.class));
+
+        // ///////////////////////////////////////////////////////////////////////////////
+
+        System.out.println(hotSpotServiceabilityAgentManager.executeOnHotSpotSA(HeapSummaryWorker.class));
+    }
+
     @SuppressWarnings("serial")
     // Can be executed via "HotSpotServiceabilityAgent.executeOnHotSpotSA(HeapSummaryWorker.class);"
     public static class HeapSummaryResult implements HotSpotServiceabilityAgentResult {
-        
+
         private final long start;
         private final long end;
         private final long capacity;
-        
+
         public HeapSummaryResult() {
             start = -1;
             end = -1;
             capacity = -1;
         }
-        
+
         public HeapSummaryResult(long start, long capacity) {
             this.start = start;
             this.end = start + capacity;
             this.capacity = capacity;
         }
-        
+
         public long getStart() {
             return start;
         }
-        
+
         public long getEnd() {
             return end;
         }
-        
+
         public long getCapacity() {
             return capacity;
         }
-        
+
         @Override
         public String toString() {
             return "HeapSummaryResult [" + 
-                    "start=" + "0x" + Long.toHexString(start) +
-                    ", end=" + "0x" + Long.toHexString(end) +
+                    "start=" + "0x" + Long.toHexString(start) + 
+                    ", end=" + "0x" + Long.toHexString(end) + 
                     ", capacity=" + capacity + "]";
         }
-        
+
     }
-    
+
     @SuppressWarnings("serial")
-    public static class HeapSummaryWorker 
+    public static class HeapSummaryWorker
             implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HeapSummaryResult> {
 
         @Override
@@ -119,7 +119,7 @@ public class Jemstone {
             long capacity = heap.capacity();
             return new HeapSummaryResult(startAddress, capacity);
         }
-        
+
     }
-    
+
 }
