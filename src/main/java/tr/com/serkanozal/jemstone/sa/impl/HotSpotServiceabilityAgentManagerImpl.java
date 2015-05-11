@@ -24,7 +24,7 @@ import sun.jvm.hotspot.HotSpotAgent;
 import sun.jvm.hotspot.runtime.VM;
 import sun.management.VMManagement;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentMan;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
@@ -33,7 +33,7 @@ import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedRefe
 import tr.com.serkanozal.jemstone.util.ClasspathUtil;
 
 /**
- * Implementation of {@link HotSpotServiceabilityAgentManager} based on HotSpot SA API.
+ * Implementation of {@link HotSpotServiceabilityAgentMan} based on HotSpot SA API.
  * 
  * <pre>
  * <b>IMPORTANT NOTE:</b> 
@@ -47,7 +47,7 @@ import tr.com.serkanozal.jemstone.util.ClasspathUtil;
  *          <a href="http://linux.about.com/od/commands/l/blcmdl8_sudo.htm">http://linux.about.com/od/commands/l/blcmdl8_sudo.htm</a>
  * </pre>
  * 
- * @see HotSpotServiceabilityAgentManager
+ * @see HotSpotServiceabilityAgentMan
  * 
  * @see HotSpotServiceabilityAgentWorker
  * @see HotSpotServiceabilityAgentResult
@@ -58,7 +58,7 @@ import tr.com.serkanozal.jemstone.util.ClasspathUtil;
  * @author Serkan Ozal
  */
 @SuppressWarnings("restriction")
-public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabilityAgentManager {
+public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabilityAgentMan {
 
     private static final String SKIP_HOTSPOT_SA_INIT_FLAG = "jemstone.skipHotspotSAInit";
     private static final String SKIP_HOTSPOT_SA_ATTACH_FLAG = "jemstone.skipHotspotSAAttach";
@@ -238,13 +238,13 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         sudoRequired = sudoNeeded;
     }
     
-    private static final HotSpotServiceabilityAgentManager INSTANCE = new HotSpotServiceabilityAgentManagerImpl();
+    private static final HotSpotServiceabilityAgentMan INSTANCE = new HotSpotServiceabilityAgentManagerImpl();
 
     private HotSpotServiceabilityAgentManagerImpl() {
 
     }
     
-    public static HotSpotServiceabilityAgentManager getInstance() {
+    public static HotSpotServiceabilityAgentMan getInstance() {
         return INSTANCE;
     }
 
