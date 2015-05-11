@@ -21,7 +21,7 @@ import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedRefe
 import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountResult;
 
 /**
- *  Interface for managing HotSpot SA API based stuff.
+ * Interface for managing HotSpot SA API based stuff.
  * 
  * @see HotSpotServiceabilityAgentWorker
  * @see HotSpotServiceabilityAgentResult

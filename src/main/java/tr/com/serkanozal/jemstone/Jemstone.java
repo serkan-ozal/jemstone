@@ -22,8 +22,8 @@ import sun.jvm.hotspot.gc_interface.CollectedHeap;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter.NoHotSpotServiceabilityAgentParameter;
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
+import tr.com.serkanozal.jemstone.sa.impl.HotSpotSAKeyValueResult;
 import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentManagerImpl;
 
 public class Jemstone {
@@ -67,57 +67,19 @@ public class Jemstone {
 
     @SuppressWarnings("serial")
     // Can be executed via "HotSpotServiceabilityAgent.executeOnHotSpotSA(HeapSummaryWorker.class);"
-    public static class HeapSummaryResult implements HotSpotServiceabilityAgentResult {
-
-        private final long start;
-        private final long end;
-        private final long capacity;
-
-        public HeapSummaryResult() {
-            start = -1;
-            end = -1;
-            capacity = -1;
-        }
-
-        public HeapSummaryResult(long start, long capacity) {
-            this.start = start;
-            this.end = start + capacity;
-            this.capacity = capacity;
-        }
-
-        public long getStart() {
-            return start;
-        }
-
-        public long getEnd() {
-            return end;
-        }
-
-        public long getCapacity() {
-            return capacity;
-        }
-
-        @Override
-        public String toString() {
-            return "HeapSummaryResult [" + 
-                    "start=" + "0x" + Long.toHexString(start) + 
-                    ", end=" + "0x" + Long.toHexString(end) + 
-                    ", capacity=" + capacity + "]";
-        }
-
-    }
-
-    @SuppressWarnings("serial")
     public static class HeapSummaryWorker
-            implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HeapSummaryResult> {
+            implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HotSpotSAKeyValueResult> {
 
         @Override
-        public HeapSummaryResult run(HotSpotServiceabilityAgentContext context,
+        public HotSpotSAKeyValueResult run(HotSpotServiceabilityAgentContext context,
                 NoHotSpotServiceabilityAgentParameter param) {
             CollectedHeap heap = context.getVM().getUniverse().heap();
             long startAddress = Long.parseLong(heap.start().toString().substring(2), 16);
             long capacity = heap.capacity();
-            return new HeapSummaryResult(startAddress, capacity);
+            return new HotSpotSAKeyValueResult().
+                            addResult("startAddress", "0x" + Long.toHexString(startAddress)).
+                            addResult("endAddress", "0x" + Long.toHexString(startAddress + capacity)).
+                            addResult("capacity", capacity);
         }
 
     }
