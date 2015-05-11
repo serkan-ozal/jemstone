@@ -14,7 +14,7 @@ import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedRefe
  *
  * @author Serkan Ozal
  */
-public interface HotSpotServiceabilityAgentMan {
+public interface HotSpotServiceabilityAgentManager {
 
     /**
      * Returns <code>true</code> if HotSpot Serviceability Agent support is enable, 
