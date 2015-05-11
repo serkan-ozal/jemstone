@@ -1,7 +1,24 @@
+/*
+ * Copyright (c) 1986-2015, Serkan OZAL, All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package tr.com.serkanozal.jemstone.sa;
 
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
+import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountResult;
 
 /**
  *  Interface for managing HotSpot SA API based stuff.
@@ -126,6 +143,17 @@ public interface HotSpotServiceabilityAgentManager {
      *         {@link HotSpotSACompressedReferencesResult} instance
      */
     HotSpotSACompressedReferencesResult getCompressedReferences();
+    
+    /**
+     * Calculates the instance count of given {@link Class} and return it in 
+     * {@link HotSpotSAInstanceCountResult} instance.
+     * 
+     * @param clazz {@link Class} whose instance count will be calculated
+     * 
+     * @return the instance count information as
+     *         {@link HotSpotSAInstanceCountResult} instance
+     */
+    HotSpotSAInstanceCountResult getInstanceCount(Class<?> clazz);
     
     /**
      * Gives details about HotSpot Serviceability Agent support.

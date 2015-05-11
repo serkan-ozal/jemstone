@@ -22,16 +22,9 @@
         <jillegal.agent.version>1.1.0-RELEASE</jillegal.agent.version>
         <sa_jdi.version>1.8</sa_jdi.version> 
         <sa-jdi-all.version>1.0</sa-jdi-all.version> 
-        <guava.version>13.0</guava.version>
-        <commons.lang.version>2.6</commons.lang.version>
-        <javassist.version>3.17.1-GA</javassist.version>
-        <asm.version>5.0.3</asm.version>
-        <cglib.version>2.2</cglib.version>
         <reflections.version>0.9.9-RC1</reflections.version>
-        <groovy.version>1.8.4</groovy.version>
         <log4j.version>1.2.16</log4j.version>
         <junit.version>4.11</junit.version>
-        <mockito.version>1.9.0</mockito.version>
 
     </properties>
   
@@ -143,6 +136,7 @@
             <groupId>com.sun.tools</groupId>
             <artifactId>sa_jdi</artifactId>
             <version>${sa_jdi.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.sun.tools</groupId>
@@ -150,49 +144,14 @@
             <version>${sa-jdi-all.version}</version>
         </dependency>
 		<dependency>
-            <groupId>cglib</groupId>
-            <artifactId>cglib</artifactId>
-            <version>${cglib.version}</version>
-        </dependency>
-        <dependency>
-			<groupId>org.javassist</groupId>
-			<artifactId>javassist</artifactId>
-			<version>${javassist.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.ow2.asm</groupId>
-			<artifactId>asm</artifactId>
-			<version>${asm.version}</version>
-		</dependency>
-		<dependency>
    			<groupId>org.reflections</groupId>
     		<artifactId>reflections</artifactId>
     		<version>${reflections.version}</version>
-		</dependency>
-		<dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${guava.version}</version>
-        </dependency>
-        <dependency>
-			<groupId>org.codehaus.groovy</groupId>
-			<artifactId>groovy</artifactId>
-			<version>${groovy.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.codehaus.groovy</groupId>
-			<artifactId>groovy-all</artifactId>
-			<version>${groovy.version}</version>
 		</dependency>
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
             <version>${log4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-            <version>${commons.lang.version}</version>
         </dependency>
         <!-- test -->
         <dependency>

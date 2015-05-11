@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 1986-2015, Serkan OZAL, All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package tr.com.serkanozal.jemstone.sa.impl;
 
 import java.io.BufferedReader;
@@ -30,6 +46,9 @@ import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
+import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountParameter;
+import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountResult;
+import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountWorker;
 import tr.com.serkanozal.jemstone.util.ClasspathUtil;
 
 /**
@@ -624,11 +643,13 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         }
     }
 
+    @Override
     public boolean isEnable() {
         return enable;
     }
     
     @SuppressWarnings("unchecked")
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
@@ -636,23 +657,27 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
                                   param, DEFAULT_TIMEOUT_IN_MSECS);
     }
     
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker) {
         return executeOnHotSpotSAInternal(worker, null, DEFAULT_TIMEOUT_IN_MSECS);
     }
 
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param) {
         return executeOnHotSpotSAInternal(worker, param, DEFAULT_TIMEOUT_IN_MSECS);
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
             int timeoutInMsecs) {
@@ -661,6 +686,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
             P param, int timeoutInMsecs) {
@@ -668,19 +694,28 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                                   param, timeoutInMsecs);
     }
 
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  int timeoutInMsecs) {
         return executeOnHotSpotSAInternal(worker, null, timeoutInMsecs);
     }
     
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeoutInMsecs) {
         return executeOnHotSpotSAInternal(worker, param, timeoutInMsecs);
     }
 
+    @Override
     public HotSpotSACompressedReferencesResult getCompressedReferences() {
         return executeOnHotSpotSA(HotSpotSACompressedReferencesWorker.class, 
                                   HotSpotServiceabilityAgentParameter.VOID);
+    }
+    
+    @Override
+    public HotSpotSAInstanceCountResult getInstanceCount(Class<?> clazz) {
+        return executeOnHotSpotSA(HotSpotSAInstanceCountWorker.class,
+                                  new HotSpotSAInstanceCountParameter(clazz));
     }
 
     public String details() {
