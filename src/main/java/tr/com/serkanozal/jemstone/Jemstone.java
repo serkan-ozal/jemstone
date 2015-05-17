@@ -16,7 +16,9 @@
 
 package tr.com.serkanozal.jemstone;
 
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 
 import sun.jvm.hotspot.gc_interface.CollectedHeap;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
@@ -28,41 +30,64 @@ import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentManagerImpl;
 
 public class Jemstone {
 
-    private static HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager = 
+    private static HotSpotServiceabilityAgentManager hotSpotSAManager = 
             HotSpotServiceabilityAgentManagerImpl.getInstance();
 
     public static HotSpotServiceabilityAgentManager getHotSpotServiceabilityAgentManager() {
-        return hotSpotServiceabilityAgentManager;
+        return hotSpotSAManager;
     }
 
     public static void setHotSpotServiceabilityAgentManager(
             HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager) {
-        Jemstone.hotSpotServiceabilityAgentManager = hotSpotServiceabilityAgentManager;
+        Jemstone.hotSpotSAManager = hotSpotServiceabilityAgentManager;
     }
 
     public static void main(String[] args) {
-        HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager = getHotSpotServiceabilityAgentManager();
-
-        System.out.println(hotSpotServiceabilityAgentManager.details());
+        System.out.println(hotSpotSAManager.details());
 
         // ///////////////////////////////////////////////////////////////////////////////
 
-        System.out.println(hotSpotServiceabilityAgentManager.getCompressedReferences());
+        System.out.println(hotSpotSAManager.getCompressedReferences());
 
         // ///////////////////////////////////////////////////////////////////////////////
 
         System.out.println("Before instance creation: " + 
-                           hotSpotServiceabilityAgentManager.getInstanceCount(Date.class));
+                           hotSpotSAManager.getInstanceCount(Date.class));
         Date[] array = new Date[1000];
         for (int i = 0; i < array.length; i++) {
             array[i] = new Date();
         }
         System.out.println("After instance creation: " + 
-                           hotSpotServiceabilityAgentManager.getInstanceCount(Date.class));
+                           hotSpotSAManager.getInstanceCount(Date.class));
+        
+        // ///////////////////////////////////////////////////////////////////////////////
+        
+        stackTraceDemo();
 
         // ///////////////////////////////////////////////////////////////////////////////
 
-        System.out.println(hotSpotServiceabilityAgentManager.executeOnHotSpotSA(HeapSummaryWorker.class));
+        System.out.println(hotSpotSAManager.executeOnHotSpotSA(HeapSummaryWorker.class));
+        
+        // ///////////////////////////////////////////////////////////////////////////////
+    }
+    
+    @SuppressWarnings("unused")
+    private static void stackTraceDemo() {
+        int localVar_stackTraceDemo = 1000;
+        method1(true, 10, 20.0F, 30L, 40.0, 'X', "str");
+    }
+    
+    @SuppressWarnings("unused")
+    private static void method1(boolean b1, int i1, float f1, long l1, double d1, char c1, String s1) {
+        int localVar_method1 = 2000;
+        method2(!b1, i1 * i1, f1 * f1, l1 * l1, d1 * d1, 'Y', s1 + "-" + s1);
+    }
+    
+    @SuppressWarnings("unused")
+    private static void method2(boolean b2, int i2, float f2, long l2, double d2, char c2, String s2) {
+        int localVar_method2 = 3000;
+        System.out.println(hotSpotSAManager.getStackTraces(
+                new HashSet<String>(Arrays.asList(Thread.currentThread().getName()))));
     }
 
     @SuppressWarnings("serial")

@@ -17,6 +17,7 @@
 package tr.com.serkanozal.jemstone.sa.impl;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -25,16 +26,21 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.io.Reader;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import sun.jvm.hotspot.HotSpotAgent;
 import sun.jvm.hotspot.runtime.VM;
@@ -49,6 +55,9 @@ import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedRefe
 import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountParameter;
 import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountResult;
 import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountWorker;
+import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerParameter;
+import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerResult;
+import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerWorker;
 import tr.com.serkanozal.jemstone.util.ClasspathUtil;
 
 /**
@@ -84,15 +93,20 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private static final String SKIP_CLASSPATH_LOOKUP_FLAG = "jemstone.skipClasspathLookup";
     private static final String SKIP_JDK_HOME_LOOKUP_FLAG = "jemstone.skipJdkHomeLookup";
     private static final String SKIP_ALL_JAR_LOOKUP_FLAG = "jemstone.skipAllJarLookup";
+    private static final String PIPELINE_SIZE_PARAMETER = "jemstone.maxPipelineSize";
+    private static final String TIMEOUT_PARAMETER = "jemstone.timeout";
     private static final String TRY_WITH_SUDO_FLAG = "jemstone.tryWithSudo";
 
     private static final int DEFAULT_TIMEOUT_IN_MSECS = 5000; // 5 seconds
     private static final int VM_CHECK_PERIOD_SENSITIVITY_IN_MSECS = 1000; // 1 seconds
+    private static final int DEFAULT_PIPELINE_SIZE_IN_BYTES = 16 * 1024; // 16 KB
     private static final int PROCESS_ATTACH_FAILED_EXIT_CODE = 128;
-
+    
     private static final boolean enable;
     private static final int processId;
     private static final String classpathForAgent;
+    private static final int timeout;
+    private static final int pipelineSize;
     private static final boolean sudoRequired;
     private static final Map<String, String> additionalVmArguments = new HashMap<String, String>();
     private static final String errorMessage;
@@ -106,6 +120,9 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         String errorMsg = null;
         boolean sudoNeeded = false;
 
+        timeout = Integer.getInteger(TIMEOUT_PARAMETER, DEFAULT_TIMEOUT_IN_MSECS);
+        pipelineSize = Integer.getInteger(PIPELINE_SIZE_PARAMETER, 
+                                          DEFAULT_PIPELINE_SIZE_IN_BYTES);
         if (!skipInit) {
             if (Boolean.getBoolean(SKIP_HOTSPOT_SA_ATTACH_FLAG)) {
                 active = false;
@@ -221,7 +238,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                 try {
                     // First check attempt for HotSpot agent connection without "sudo" command
                     executeOnHotSpotSAInternal(currentProcId, classpathForAgentProc, false, null, null,
-                                               DEFAULT_TIMEOUT_IN_MSECS);
+                                               timeout, pipelineSize);
                 } catch (ProcessAttachFailedException e1) {
                     // Possibly because of insufficient privilege. So "sudo" is required.
                     // So if "sudo" command is valid on OS and user allows "sudo" usage
@@ -229,7 +246,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                         try {
                             // Second check attempt for HotSpot agent connection but this time with "sudo" command
                             executeOnHotSpotSAInternal(currentProcId, classpathForAgentProc, true, null, null,
-                                                       DEFAULT_TIMEOUT_IN_MSECS);
+                                                       timeout, pipelineSize);
 
                             sudoNeeded = true;
                         } catch (Throwable t2) {
@@ -351,22 +368,75 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
             }
         }
     }
+    
+    private static void safelyClose(MappedByteBuffer buffer) {
+        if (buffer != null) {
+            sun.misc.Cleaner cleaner = ((sun.nio.ch.DirectBuffer) buffer).cleaner();
+            cleaner.clean();
+        }
+    }
+    
+    private static void safelyClose(FileChannel channel) {
+        if (channel != null) {
+            try {
+                channel.close();
+            } catch (IOException e) {
+                // ignore
+            }
+        }
+    }
+    
+    private static void safelyClose(File file) {
+        if (file != null) {
+            file.delete();
+        }
+    }
+    
+    private static byte[] serializeObject(Object obj) throws IOException {
+        ByteArrayOutputStream baos = null;
+        ObjectOutputStream oos = null;
+        try {
+            baos = new ByteArrayOutputStream();
+            oos = new ObjectOutputStream(baos);
+            oos.writeObject(obj);
+            oos.flush();
+            return baos.toByteArray();
+        } finally {
+            safelyClose(oos);
+            safelyClose(baos);
+        }
+    }
+    
+    @SuppressWarnings("unchecked")
+    private static <T> T deserializeObject(byte[] data) throws IOException, ClassNotFoundException {
+        ByteArrayInputStream bais = null;
+        ObjectInputStream ois = null;
+        try {
+            bais = new ByteArrayInputStream(data);
+            ois = new ObjectInputStream(bais);
+            return (T) ois.readObject();
+        } finally {
+            safelyClose(ois);
+            safelyClose(bais);
+        }
+    }
 
     private static 
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSAInternal(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
-            int timeoutInMsecs) {
+            int timeoutInMsecs, int maxPipelineSizeInBytes) {
         checkEnable();
 
         return executeOnHotSpotSAInternal(processId, classpathForAgent, sudoRequired, 
-                                          worker, param, timeoutInMsecs);
+                                          worker, param, timeoutInMsecs, maxPipelineSizeInBytes);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "resource" })
     private static 
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSAInternal(int procId, String classpath, boolean sudoRequired,
-            HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeoutInMsecs) {
+            HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
+            int timeoutInMsecs, int pipelineSizeInBytes) {
         // Generate required arguments to create an external Java process
         List<String> args = new ArrayList<String>();
         if (sudoRequired) {
@@ -386,12 +456,26 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         ObjectOutputStream out = null;
         BufferedReader err = null;
         Process agentProcess = null;
+        File pipelineFile = null;
+        FileChannel pipelineChannel = null;
+        MappedByteBuffer pipelineBuffer = null;
+        
         try {
             // Create an external Java process to connect this process as HotSpot agent
             agentProcess = new ProcessBuilder(args).start();
 
+            // Create a temporary file to be used as pipeline between caller process and HotSpot SA process
+            pipelineFile = File.createTempFile(UUID.randomUUID().toString(), ".tmp");
+            pipelineFile.deleteOnExit();
+            
+            // Open a connection to memory mapped file based pipeline between caller process and HotSpot SA process
+            pipelineChannel = new RandomAccessFile(pipelineFile, "rw").getChannel();
+            pipelineBuffer = pipelineChannel.map(FileChannel.MapMode.READ_WRITE, 0, pipelineSizeInBytes);
+            
             HotSpotServiceabilityAgentRequest<P, R> request = 
-                    new HotSpotServiceabilityAgentRequest<P, R>(procId, worker, param, timeoutInMsecs);
+                    new HotSpotServiceabilityAgentRequest<P, R>(procId, pipelineFile.getAbsolutePath(), 
+                                                                worker, param, timeoutInMsecs, 
+                                                                pipelineSizeInBytes);
 
             // Get input, output and error streams
             InputStream is = agentProcess.getInputStream();
@@ -437,8 +521,25 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                 if (response.getError() != null) {
                     Throwable error = response.getError();
                     throw new RuntimeException(error.getMessage(), error);
+                } else {
+                    int pipelineDataSize = response.getPipelineDataSize();
+                    if (pipelineDataSize == HotSpotServiceabilityAgentResponse.PIPELINE_DATA_NOT_USED) {
+                        // If pipeline has not been used, get result directly over response
+                        return response.getResult();
+                    } else {
+                        // If pipeline has been used, read data as byte[] from pipeline and deserialize it to result
+                        byte[] data = null;
+                        pipelineBuffer = pipelineBuffer.load();
+                        if (pipelineBuffer.hasArray()) {
+                            data = pipelineBuffer.array();
+                        } else {
+                            data = new byte[pipelineDataSize];
+                            pipelineBuffer.get(data);
+                        }
+                        return deserializeObject(data);
+                    }
                 }
-                return response.getResult();
+                
             } else {
                 return null;
             }
@@ -450,6 +551,9 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
             safelyClose(out);
             safelyClose(in);
             safelyClose(err);
+            safelyClose(pipelineBuffer);
+            safelyClose(pipelineChannel);
+            safelyClose(pipelineFile);
 
             if (agentProcess != null) {
                 // If process is still in use, destroy it.
@@ -491,28 +595,39 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
             implements Serializable {
 
         private final int processId;
+        private final String pipelineFilePath;
         private final HotSpotServiceabilityAgentWorker<P, R> worker;
         private final P param;
         private final int timeout;
+        private final int pipelineSize;
 
-        private HotSpotServiceabilityAgentRequest(int processId,
+        private HotSpotServiceabilityAgentRequest(int processId, String pipelineFilePath,
                 HotSpotServiceabilityAgentWorker<P, R> worker, P param) {
             this.processId = processId;
+            this.pipelineFilePath = pipelineFilePath;
             this.worker = worker;
             this.param = param;
-            this.timeout = DEFAULT_TIMEOUT_IN_MSECS;
+            this.timeout = HotSpotServiceabilityAgentManagerImpl.timeout;
+            this.pipelineSize = HotSpotServiceabilityAgentManagerImpl.pipelineSize;
         }
 
-        private HotSpotServiceabilityAgentRequest(int processId,
-                HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeout) {
+        private HotSpotServiceabilityAgentRequest(int processId, String pipelineFilePath,
+                HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
+                int timeout, int pipelineSize) {
             this.processId = processId;
+            this.pipelineFilePath = pipelineFilePath;
             this.worker = worker;
             this.param = param;
             this.timeout = timeout;
+            this.pipelineSize = pipelineSize;
         }
 
         public int getProcessId() {
             return processId;
+        }
+        
+        public String getPipelineFilePath() {
+            return pipelineFilePath;
         }
 
         public HotSpotServiceabilityAgentWorker<P, R> getWorker() {
@@ -526,6 +641,10 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         public int getTimeout() {
             return timeout;
         }
+        
+        public int getPipelineSize() {
+            return pipelineSize;
+        }
 
     }
 
@@ -536,17 +655,28 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private static class HotSpotServiceabilityAgentResponse<R extends HotSpotServiceabilityAgentResult> 
             implements Serializable {
 
+        private static final int PIPELINE_DATA_NOT_USED = -1;
+        
         private final R result;
         private final Throwable error;
+        private final int pipelineDataSize;
 
         private HotSpotServiceabilityAgentResponse(R result) {
             this.result = result;
             this.error = null;
+            this.pipelineDataSize = PIPELINE_DATA_NOT_USED;
         }
 
         private HotSpotServiceabilityAgentResponse(Throwable error) {
             this.result = null;
             this.error = error;
+            this.pipelineDataSize = PIPELINE_DATA_NOT_USED;
+        }
+        
+        private HotSpotServiceabilityAgentResponse(int pipelineDataSize) {
+            this.result = null;
+            this.error = null;
+            this.pipelineDataSize = pipelineDataSize;
         }
 
         public R getResult() {
@@ -556,10 +686,14 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         public Throwable getError() {
             return error;
         }
+        
+        public int getPipelineDataSize() {
+            return pipelineDataSize;
+        }
 
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "resource" })
     public static 
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     void main(final String[] args) {
@@ -569,6 +703,8 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectInputStream in = null;
         ObjectOutputStream out = null;
+        FileChannel pipelineChannel = null;
+        MappedByteBuffer pipelineBuffer = null;
 
         try {
             // Gets request from caller process over standard input
@@ -580,6 +716,11 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
 
             final HotSpotServiceabilityAgentRequest<P, R> request = 
                     (HotSpotServiceabilityAgentRequest<P, R>) in.readObject();
+            
+            // Open a connection to memory mapped file based pipeline between caller process and HotSpot SA process
+            pipelineChannel = new RandomAccessFile(request.getPipelineFilePath(), "rw").getChannel();
+            pipelineBuffer = pipelineChannel.map(FileChannel.MapMode.READ_WRITE, 0, request.getPipelineSize());
+
             hotSpotAgent = HotSpotServiceabilityAgentUtil.getHotSpotAgentInstance();
             final HotSpotAgent agent = hotSpotAgent;
             
@@ -614,7 +755,16 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                 if (worker != null) {
                     // Execute worker and gets its result
                     final R result = worker.run(new HotSpotServiceabilityAgentContext(hotSpotAgent, vm), param);
-                    response = new HotSpotServiceabilityAgentResponse<R>(result);
+                    
+                    // Serialize result
+                    byte[] resultData = serializeObject(result);
+                    
+                    // Create a response with size of result
+                    response = new HotSpotServiceabilityAgentResponse<R>(resultData.length);
+                    
+                    // Write result to pipeline
+                    pipelineBuffer.put(resultData);
+                    pipelineBuffer.force();
                 }
             } else {
                 throw new IllegalStateException("VM couldn't be initialized !");
@@ -653,7 +803,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  null, DEFAULT_TIMEOUT_IN_MSECS);
+                                  null, timeout, pipelineSize);
     }
 
     @SuppressWarnings("unchecked")
@@ -661,49 +811,51 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  param, DEFAULT_TIMEOUT_IN_MSECS);
+                                  param, timeout, pipelineSize);
     }
     
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker) {
-        return executeOnHotSpotSAInternal(worker, null, DEFAULT_TIMEOUT_IN_MSECS);
+        return executeOnHotSpotSAInternal(worker, null, timeout, pipelineSize);
     }
 
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param) {
-        return executeOnHotSpotSAInternal(worker, param, DEFAULT_TIMEOUT_IN_MSECS);
+        return executeOnHotSpotSAInternal(worker, param, timeout, pipelineSize);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
-            int timeoutInMsecs) {
+            int timeoutInMsecs, int pipelineSizeInBytes) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  null, timeoutInMsecs);
+                                  null, timeoutInMsecs, pipelineSizeInBytes);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
-            P param, int timeoutInMsecs) {
+            P param, int timeoutInMsecs, int pipelineSizeInBytes) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  param, timeoutInMsecs);
+                                  param, timeoutInMsecs, pipelineSizeInBytes);
     }
 
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  int timeoutInMsecs) {
-        return executeOnHotSpotSAInternal(worker, null, timeoutInMsecs);
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  
+            int timeoutInMsecs, int pipelineSizeInBytes) {
+        return executeOnHotSpotSAInternal(worker, null, timeoutInMsecs, pipelineSizeInBytes);
     }
     
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeoutInMsecs) {
-        return executeOnHotSpotSAInternal(worker, param, timeoutInMsecs);
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
+            int timeoutInMsecs, int pipelineSizeInBytes) {
+        return executeOnHotSpotSAInternal(worker, param, timeoutInMsecs, pipelineSizeInBytes);
     }
 
     @Override
@@ -716,6 +868,12 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     public HotSpotSAInstanceCountResult getInstanceCount(Class<?> clazz) {
         return executeOnHotSpotSA(HotSpotSAInstanceCountWorker.class,
                                   new HotSpotSAInstanceCountParameter(clazz));
+    }
+    
+    @Override
+    public HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames) {
+        return executeOnHotSpotSA(HotSpotSAStackTracerWorker.class,
+                                  new HotSpotSAStackTracerParameter(threadNames));
     }
 
     public String details() {

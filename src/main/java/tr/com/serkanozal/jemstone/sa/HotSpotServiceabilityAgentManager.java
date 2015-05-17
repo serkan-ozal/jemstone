@@ -16,9 +16,12 @@
 
 package tr.com.serkanozal.jemstone.sa;
 
+import java.util.Set;
+
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
 import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountResult;
+import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerResult;
 
 /**
  * Interface for managing HotSpot SA API based stuff.
@@ -87,53 +90,63 @@ public interface HotSpotServiceabilityAgentManager {
      * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
      * agent process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
      *
-     * @param workerClass    the type of {@link HotSpotServiceabilityAgentWorker} instance to execute
-     * @param timeoutInMsecs the timeout in milliseconds to wait at most for terminating
-     *                       connection between current process and HotSpot agent process.
+     * @param workerClass           the type of {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param timeoutInMsecs        the timeout in milliseconds to wait at most for terminating
+     *                              connection between current process and HotSpot agent process
+     * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
+     *                              from HotSpot SA process                   
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
         R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
-                int timeoutInMsecs);
+                int timeoutInMsecs, int pipelineSizeInBytes);
     
     /**
      * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
      * agent process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
      *
-     * @param workerClass    the type of {@link HotSpotServiceabilityAgentWorker} instance to execute
-     * @param param          the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
-     * @param timeoutInMsecs the timeout in milliseconds to wait at most for terminating
-     *                       connection between current process and HotSpot agent process.
+     * @param workerClass           the type of {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param param                 the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
+     * @param timeoutInMsecs        the timeout in milliseconds to wait at most for terminating
+     *                              connection between current process and HotSpot agent process
+     * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
+     *                              from HotSpot SA process 
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
         R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
-                P param, int timeoutInMsecs);
+                P param, int timeoutInMsecs, int pipelineSizeInBytes);
 
     /**
      * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
      * process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
      * 
-     * @param worker         the {@link HotSpotServiceabilityAgentWorker} instance to execute
-     * @param timeoutInMsecs the timeout in milliseconds to wait at most for terminating
-     *                       connection between current process and HotSpot agent process.
+     * @param worker                the {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param timeoutInMsecs        the timeout in milliseconds to wait at most for terminating
+     *                              connection between current process and HotSpot agent process
+     * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
+     *                              from HotSpot SA process 
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  int timeoutInMsecs);
+        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  
+                int timeoutInMsecs, int pipelineSizeInBytes);
     
     /**
      * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
      * process and returns a {@link HotSpotServiceabilityAgentResult} instance as result.
      * 
-     * @param worker         the {@link HotSpotServiceabilityAgentWorker} instance to execute
-     * @param param          the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
-     * @param timeoutInMsecs the timeout in milliseconds to wait at most for terminating
-     *                       connection between current process and HotSpot agent process.
+     * @param worker                the {@link HotSpotServiceabilityAgentWorker} instance to execute
+     * @param param                 the {@link HotSpotServiceabilityAgentParameter} instance as parameter to worker
+     * @param timeoutInMsecs        the timeout in milliseconds to wait at most for terminating
+     *                              connection between current process and HotSpot agent process
+     * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
+     *                              from HotSpot SA process 
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, int timeoutInMsecs);
+        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
+                int timeoutInMsecs, int pipelineSizeInBytes);
     
     /**
      * Gets the compressed references information as
@@ -154,6 +167,16 @@ public interface HotSpotServiceabilityAgentManager {
      *         {@link HotSpotSAInstanceCountResult} instance
      */
     HotSpotSAInstanceCountResult getInstanceCount(Class<?> clazz);
+    
+    /**
+     * Gets detailed stack trace informations of given threads.
+     * 
+     * @param threadNames the names of the threads whose stack trace 
+     *                    information will be retrieved
+     * @return the detailed stack trace informations
+     *         {@link HotSpotSAStackTracerResult} instance
+     */
+    HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames);
     
     /**
      * Gives details about HotSpot Serviceability Agent support.

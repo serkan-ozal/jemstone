@@ -17,6 +17,7 @@
 package tr.com.serkanozal.jemstone.util;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -335,6 +336,120 @@ public class ReflectionUtil {
             return true;
         } else {
             return false;
+        }
+    }
+    
+    public static Class<?> signatureToClass(String signature) {
+        if ("V".equals(signature)) {
+            return void.class;
+        } else  {
+            if ("B".equals(signature)) {
+                return byte.class;
+            } else if ("Z".equals(signature)) {
+                return boolean.class;
+            } else if ("C".equals(signature)) {
+                return char.class;
+            } else if ("S".equals(signature)) {
+                return short.class;
+            } else if ("I".equals(signature)) {
+                return int.class;
+            } else if ("F".equals(signature)) {
+                return float.class;
+            } else if ("J".equals(signature)) {
+                return long.class;
+            } else if ("D".equals(signature)) {
+                return double.class;
+            } else if (signature.startsWith("L")) {
+                try {
+                    return Class.forName(
+                                signature.substring(1, signature.length() - 1).
+                                    replace("/", "."));
+                } catch (ClassNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
+            } else if (signature.startsWith("[")) {
+                String componentType = signature.substring(1);
+                if ("B".equals(componentType)) {
+                    return byte[].class;
+                } else if ("Z".equals(componentType)) {
+                    return boolean[].class;
+                } else if ("C".equals(componentType)) {
+                    return char[].class;
+                } else if ("S".equals(componentType)) {
+                    return short[].class;
+                } else if ("I".equals(componentType)) {
+                    return int[].class;
+                } else if ("F".equals(componentType)) {
+                    return float[].class;
+                } else if ("J".equals(componentType)) {
+                    return long[].class;
+                } else if ("D".equals(componentType)) {
+                    return double[].class;
+                } else if (componentType.startsWith("L")) {
+                    try {
+                       return Array.newInstance(
+                                   Class.forName(
+                                           componentType.substring(1, componentType.length() - 1).
+                                               replace("/", ".")),
+                                   0).getClass();
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                } 
+            }
+            
+            throw new IllegalArgumentException("Unknown signature: " + signature);
+        }
+    }
+    
+    public static String normalizeSignature(String signature) {
+        if ("V".equals(signature)) {
+            return "void";
+        } else  {
+            if ("B".equals(signature)) {
+                return "byte";
+            } else if ("Z".equals(signature)) {
+                return "boolean";
+            } else if ("C".equals(signature)) {
+                return "char";
+            } else if ("S".equals(signature)) {
+                return "short";
+            } else if ("I".equals(signature)) {
+                return "int";
+            } else if ("F".equals(signature)) {
+                return "float";
+            } else if ("J".equals(signature)) {
+                return "long";
+            } else if ("D".equals(signature)) {
+                return "double";
+            } else if (signature.startsWith("L")) {
+                return signature.substring(1, signature.length() - 1).
+                            replace("/", ".");
+            } else if (signature.startsWith("[")) {
+                String componentType = signature.substring(1);
+                if ("B".equals(componentType)) {
+                    return "byte[]";
+                } else if ("Z".equals(componentType)) {
+                    return "boolean[]";
+                } else if ("C".equals(componentType)) {
+                    return "char[]";
+                } else if ("S".equals(componentType)) {
+                    return "short[]";
+                } else if ("I".equals(componentType)) {
+                    return "int[]";
+                } else if ("F".equals(componentType)) {
+                    return "float[]";
+                } else if ("J".equals(componentType)) {
+                    return "long[]";
+                } else if ("D".equals(componentType)) {
+                    return "double[]";
+                } else if (componentType.startsWith("L")) {
+                    return componentType.substring(1, componentType.length() - 1).
+                                replace("/", ".") + "[]";
+                } 
+            }
+            
+            throw new IllegalArgumentException("Unknown signature: " + signature);
         }
     }
 
