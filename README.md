@@ -45,12 +45,19 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 ==============
 
 * **`jemstone.skipHotspotSAInit`:** 
+
 * **`jemstone.skipHotspotSAAttach`:** 
+
 * **`jemstone.skipClasspathLookup`:** 
+
 * **`jemstone.skipJdkHomeLookup`:** 
+
 * **`jemstone.skipAllJarLookup`:** 
+
 * **`jemstone.pipelineSize`:** 
+
 * **`jemstone.timeout`:** 
+
 * **`jemstone.tryWithSudo`:**
 
 
