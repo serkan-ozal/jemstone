@@ -51,7 +51,7 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 * **`jemstone.skipAllJarLookup`:** 
 * **`jemstone.pipelineSize`:** 
 * **`jemstone.timeout`:** 
-* **`jemstone.tryWithSudo`:** 
+* **`jemstone.tryWithSudo`:**
 
 
 4. Usage
