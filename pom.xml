@@ -19,10 +19,8 @@
         <maven.surefire.plugin.version>2.9</maven.surefire.plugin.version>
         <maven.deploy.plugin.version>2.6</maven.deploy.plugin.version>
         
-        <jillegal.agent.version>1.1.0-RELEASE</jillegal.agent.version>
         <sa_jdi.version>1.8</sa_jdi.version> 
         <sa-jdi-all.version>1.0</sa-jdi-all.version> 
-        <reflections.version>0.9.9-RC1</reflections.version>
         <log4j.version>1.2.16</log4j.version>
         <junit.version>4.11</junit.version>
 
@@ -127,11 +125,6 @@
     </build>
     
    	<dependencies>
-   	    <dependency>
-            <groupId>tr.com.serkanozal</groupId>
-            <artifactId>jillegal-agent-java8</artifactId>
-            <version>${jillegal.agent.version}</version>
-        </dependency>
         <dependency>
             <groupId>com.sun.tools</groupId>
             <artifactId>sa_jdi</artifactId>
@@ -143,11 +136,6 @@
             <artifactId>sa-jdi-all</artifactId>
             <version>${sa-jdi-all.version}</version>
         </dependency>
-		<dependency>
-   			<groupId>org.reflections</groupId>
-    		<artifactId>reflections</artifactId>
-    		<version>${reflections.version}</version>
-		</dependency>
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
