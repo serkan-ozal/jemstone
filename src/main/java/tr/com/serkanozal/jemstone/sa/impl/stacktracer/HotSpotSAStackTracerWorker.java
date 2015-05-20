@@ -22,16 +22,23 @@ import java.util.Set;
 
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.debugger.AddressException;
+import sun.jvm.hotspot.debugger.OopHandle;
 import sun.jvm.hotspot.oops.ConstantPool;
+import sun.jvm.hotspot.oops.Field;
+import sun.jvm.hotspot.oops.InstanceKlass;
 import sun.jvm.hotspot.oops.LocalVariableTableElement;
 import sun.jvm.hotspot.oops.Method;
 import sun.jvm.hotspot.oops.Symbol;
+import sun.jvm.hotspot.oops.TypeArray;
 import sun.jvm.hotspot.runtime.BasicType;
 import sun.jvm.hotspot.runtime.JavaThread;
 import sun.jvm.hotspot.runtime.JavaVFrame;
 import sun.jvm.hotspot.runtime.StackValue;
 import sun.jvm.hotspot.runtime.StackValueCollection;
 import sun.jvm.hotspot.runtime.Threads;
+import sun.jvm.hotspot.runtime.VM;
+import sun.jvm.hotspot.types.Type;
+import sun.jvm.hotspot.utilities.SystemDictionaryHelper;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.util.ReflectionUtil;
@@ -40,8 +47,17 @@ import tr.com.serkanozal.jemstone.util.ReflectionUtil;
 public class HotSpotSAStackTracerWorker 
         implements HotSpotServiceabilityAgentWorker<HotSpotSAStackTracerParameter,  
                                                     HotSpotSAStackTracerResult> {
-
+    
+    private static final String JEMSTONE_HOTSPOT_SA_PACKAGE_PREFIX = "tr.com.serkanozal.jemstone.sa";
+    
     private static java.lang.reflect.Method getAddressMethod;
+    
+    private InstanceKlass stringKlass;
+    private Field stringValueArrayField;
+    private long charArrayBaseOffset;
+    private int charSize;
+    private int arrayLengthOffset;
+    private boolean compressedOopsEnabled;
     
     static {
         try {
@@ -52,11 +68,30 @@ public class HotSpotSAStackTracerWorker
             getAddressMethod = null;
         }
     }
+
+    private void init(HotSpotServiceabilityAgentContext context) {
+        stringKlass = 
+                SystemDictionaryHelper.findInstanceKlass(String.class.getName());
+        stringValueArrayField = 
+                stringKlass.findField("value", char[].class.getName());
+        charArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_CHAR);
+        charSize = (int) context.getVM().getObjectHeap().getCharSize();
+        VM vm = context.getVM(); 
+        compressedOopsEnabled = vm.isCompressedOopsEnabled();
+        Type type = vm.getTypeDataBase().lookupType("arrayOopDesc");
+        int typeSize = (int)type.getSize();
+        if (compressedOopsEnabled) {
+            arrayLengthOffset = (int) (typeSize - VM.getVM().getIntSize());
+        } else {
+            arrayLengthOffset = typeSize;
+        }
+    }
     
-    private static final String JEMSTONE_HOTSPOT_SA_PACKAGE_PREFIX = "tr.com.serkanozal.jemstone.sa";
     @Override
     public HotSpotSAStackTracerResult run(HotSpotServiceabilityAgentContext context,
                                           HotSpotSAStackTracerParameter param) {
+        init(context);
+        
         HotSpotSAStackTracerResult result = new HotSpotSAStackTracerResult();
         Set<String> threadNames = param != null ? param.getThreadNames() : null;
         Threads threads = context.getVM().getThreads();
@@ -246,10 +281,27 @@ public class HotSpotSAStackTracerWorker
         } else if (valueClass.equals(double.class)) {
             double val = Double.longBitsToDouble(values.get(index).getInteger());
             tty.print(String.format("%-30f %s", val, "double"));
+        } else if (valueClass.equals(String.class)) { 
+            OopHandle strOopHandle = values.oopHandleAt(slot);
+            OopHandle valueOopHandle = null;
+            if (compressedOopsEnabled) {
+                valueOopHandle = strOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
+            } else {
+                valueOopHandle = strOopHandle.getOopHandleAt(stringValueArrayField.getOffset());
+            }
+            StringBuilder sb = new StringBuilder();
+            int length = valueOopHandle.getJIntAt(arrayLengthOffset);
+            for (int i = 0; i < length; i++) {
+                long offset = charArrayBaseOffset + i * charSize;
+                sb.append(valueOopHandle.getJCharAt(offset));
+            }
+            tty.print(String.format("%-30s %s",
+                          sb.toString(),
+                          ReflectionUtil.normalizeSignature(type)));
         } else {
             tty.print(String.format("%-30s %s",
-                      values.oopHandleAt(slot) + " (address)",
-                      ReflectionUtil.normalizeSignature(type)));
+                          values.oopHandleAt(slot) + " (address)",
+                          ReflectionUtil.normalizeSignature(type)));
         }
     }
     
