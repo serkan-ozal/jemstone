@@ -16,97 +16,25 @@
 
 package tr.com.serkanozal.jemstone;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
-
-import sun.jvm.hotspot.gc_interface.CollectedHeap;
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter.NoHotSpotServiceabilityAgentParameter;
-import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
-import tr.com.serkanozal.jemstone.sa.impl.HotSpotSAKeyValueResult;
 import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentManagerImpl;
 
-public class Jemstone {
+public final class Jemstone {
 
     private static HotSpotServiceabilityAgentManager hotSpotSAManager = 
             HotSpotServiceabilityAgentManagerImpl.getInstance();
 
+    private Jemstone() {
+        
+    }
+    
     public static HotSpotServiceabilityAgentManager getHotSpotServiceabilityAgentManager() {
         return hotSpotSAManager;
     }
 
     public static void setHotSpotServiceabilityAgentManager(
-            HotSpotServiceabilityAgentManager hotSpotServiceabilityAgentManager) {
-        Jemstone.hotSpotSAManager = hotSpotServiceabilityAgentManager;
-    }
-
-    public static void main(String[] args) {
-        System.out.println(hotSpotSAManager.details());
-
-        // ///////////////////////////////////////////////////////////////////////////////
-
-        System.out.println(hotSpotSAManager.getCompressedReferences());
-
-        // ///////////////////////////////////////////////////////////////////////////////
-
-        System.out.println("Before instance creation: " + 
-                           hotSpotSAManager.getInstanceCount(Date.class));
-        Date[] array = new Date[1000];
-        for (int i = 0; i < array.length; i++) {
-            array[i] = new Date();
-        }
-        System.out.println("After instance creation: " + 
-                           hotSpotSAManager.getInstanceCount(Date.class));
-        
-        // ///////////////////////////////////////////////////////////////////////////////
-        
-        stackTraceDemo();
-
-        // ///////////////////////////////////////////////////////////////////////////////
-
-        System.out.println(hotSpotSAManager.executeOnHotSpotSA(HeapSummaryWorker.class));
-        
-        // ///////////////////////////////////////////////////////////////////////////////
-    }
-    
-    @SuppressWarnings("unused")
-    private static void stackTraceDemo() {
-        int localVar_stackTraceDemo = 1000;
-        method1(true, 10, 20.0F, 30L, 40.0, 'X', "str");
-    }
-    
-    @SuppressWarnings("unused")
-    private static void method1(boolean b1, int i1, float f1, long l1, double d1, char c1, String s1) {
-        int localVar_method1 = 2000;
-        method2(!b1, i1 * i1, f1 * f1, l1 * l1, d1 * d1, 'Y', s1 + "-" + s1);
-    }
-    
-    @SuppressWarnings("unused")
-    private static void method2(boolean b2, int i2, float f2, long l2, double d2, char c2, String s2) {
-        int localVar_method2 = 3000;
-        System.out.println(hotSpotSAManager.getStackTraces(
-                new HashSet<String>(Arrays.asList(Thread.currentThread().getName()))));
-    }
-
-    @SuppressWarnings("serial")
-    // Can be executed via "HotSpotServiceabilityAgent.executeOnHotSpotSA(HeapSummaryWorker.class);"
-    public static class HeapSummaryWorker
-            implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HotSpotSAKeyValueResult> {
-
-        @Override
-        public HotSpotSAKeyValueResult run(HotSpotServiceabilityAgentContext context,
-                NoHotSpotServiceabilityAgentParameter param) {
-            CollectedHeap heap = context.getVM().getUniverse().heap();
-            long startAddress = Long.parseLong(heap.start().toString().substring(2), 16);
-            long capacity = heap.capacity();
-            return new HotSpotSAKeyValueResult().
-                            addResult("startAddress", "0x" + Long.toHexString(startAddress)).
-                            addResult("endAddress", "0x" + Long.toHexString(startAddress + capacity)).
-                            addResult("capacity", capacity);
-        }
-
+            HotSpotServiceabilityAgentManager hotSpotSAManager) {
+        Jemstone.hotSpotSAManager = hotSpotSAManager;
     }
 
 }

@@ -20,7 +20,6 @@ import java.util.Set;
 
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
-import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountResult;
 import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerResult;
 
 /**
@@ -36,6 +35,8 @@ import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerResult
  */
 public interface HotSpotServiceabilityAgentManager {
 
+    int ATTACH_TO_CURRENT_PROCESS = -1;
+    
     /**
      * Returns <code>true</code> if HotSpot Serviceability Agent support is enable, 
      * otherwise <code>false</code>.
@@ -94,12 +95,13 @@ public interface HotSpotServiceabilityAgentManager {
      * @param timeoutInMsecs        the timeout in milliseconds to wait at most for terminating
      *                              connection between current process and HotSpot agent process
      * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
-     *                              from HotSpot SA process                   
+     *                              from HotSpot SA process
+     * @param processId             id of target process to attach and run on it                                                
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
         R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
-                int timeoutInMsecs, int pipelineSizeInBytes);
+                int timeoutInMsecs, int pipelineSizeInBytes, int processId);
     
     /**
      * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
@@ -111,11 +113,12 @@ public interface HotSpotServiceabilityAgentManager {
      *                              connection between current process and HotSpot agent process
      * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
      *                              from HotSpot SA process 
+     * @param processId             id of target process to attach and run on it  
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
         R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
-                P param, int timeoutInMsecs, int pipelineSizeInBytes);
+                P param, int timeoutInMsecs, int pipelineSizeInBytes, int processId);
 
     /**
      * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
@@ -126,11 +129,12 @@ public interface HotSpotServiceabilityAgentManager {
      *                              connection between current process and HotSpot agent process
      * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
      *                              from HotSpot SA process 
+     * @param processId             id of target process to attach and run on it                               
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
         R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  
-                int timeoutInMsecs, int pipelineSizeInBytes);
+                int timeoutInMsecs, int pipelineSizeInBytes, int processId);
     
     /**
      * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
@@ -142,11 +146,12 @@ public interface HotSpotServiceabilityAgentManager {
      *                              connection between current process and HotSpot agent process
      * @param pipelineSizeInBytes   the maximum size of pipeline in bytes for getting result 
      *                              from HotSpot SA process 
+     * @param processId             id of target process to attach and run on it                             
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
         R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
-                int timeoutInMsecs, int pipelineSizeInBytes);
+                int timeoutInMsecs, int pipelineSizeInBytes, int processId);
     
     /**
      * Gets the compressed references information as
@@ -158,17 +163,6 @@ public interface HotSpotServiceabilityAgentManager {
     HotSpotSACompressedReferencesResult getCompressedReferences();
     
     /**
-     * Calculates the instance count of given {@link Class} and return it in 
-     * {@link HotSpotSAInstanceCountResult} instance.
-     * 
-     * @param clazz {@link Class} whose instance count will be calculated
-     * 
-     * @return the instance count information as
-     *         {@link HotSpotSAInstanceCountResult} instance
-     */
-    HotSpotSAInstanceCountResult getInstanceCount(Class<?> clazz);
-    
-    /**
      * Gets detailed stack trace informations of given threads.
      * 
      * @param threadNames the names of the threads whose stack trace 
@@ -177,6 +171,17 @@ public interface HotSpotServiceabilityAgentManager {
      *         {@link HotSpotSAStackTracerResult} instance
      */
     HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames);
+    
+    /**
+     * Gets detailed stack trace informations of given threads.
+     * 
+     * @param threadNames the names of the threads whose stack trace 
+     *                    information will be retrieved
+     * @param processId   id of target process to attach and run on it                      
+     * @return the detailed stack trace informations
+     *         {@link HotSpotSAStackTracerResult} instance
+     */
+    HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames, int processId);
     
     /**
      * Gives details about HotSpot Serviceability Agent support.

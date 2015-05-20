@@ -52,9 +52,6 @@ import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
-import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountParameter;
-import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountResult;
-import tr.com.serkanozal.jemstone.sa.impl.instancecount.HotSpotSAInstanceCountWorker;
 import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerParameter;
 import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerResult;
 import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerWorker;
@@ -93,7 +90,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private static final String SKIP_CLASSPATH_LOOKUP_FLAG = "jemstone.skipClasspathLookup";
     private static final String SKIP_JDK_HOME_LOOKUP_FLAG = "jemstone.skipJdkHomeLookup";
     private static final String SKIP_ALL_JAR_LOOKUP_FLAG = "jemstone.skipAllJarLookup";
-    private static final String PIPELINE_SIZE_PARAMETER = "jemstone.maxPipelineSize";
+    private static final String PIPELINE_SIZE_PARAMETER = "jemstone.pipelineSize";
     private static final String TIMEOUT_PARAMETER = "jemstone.timeout";
     private static final String TRY_WITH_SUDO_FLAG = "jemstone.tryWithSudo";
 
@@ -103,7 +100,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private static final int PROCESS_ATTACH_FAILED_EXIT_CODE = 128;
     
     private static final boolean enable;
-    private static final int processId;
+    private static final int currentProcessId;
     private static final String classpathForAgent;
     private static final int timeout;
     private static final int pipelineSize;
@@ -268,7 +265,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         }
 
         enable = active;
-        processId = currentProcId;
+        currentProcessId = currentProcId;
         classpathForAgent = classpathForAgentProc;
         errorMessage = errorMsg;
         sudoRequired = sudoNeeded;
@@ -424,11 +421,11 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private static 
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSAInternal(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
-            int timeoutInMsecs, int maxPipelineSizeInBytes) {
+            int timeoutInMsecs, int pipelineSizeInBytes, int processId) {
         checkEnable();
 
-        return executeOnHotSpotSAInternal(processId, classpathForAgent, sudoRequired, 
-                                          worker, param, timeoutInMsecs, maxPipelineSizeInBytes);
+        return executeOnHotSpotSAInternal(processId, classpathForAgent, sudoRequired, worker, param, 
+                                          timeoutInMsecs, pipelineSizeInBytes);
     }
 
     @SuppressWarnings({ "unchecked", "resource" })
@@ -472,6 +469,9 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
             pipelineChannel = new RandomAccessFile(pipelineFile, "rw").getChannel();
             pipelineBuffer = pipelineChannel.map(FileChannel.MapMode.READ_WRITE, 0, pipelineSizeInBytes);
             
+            if (procId == ATTACH_TO_CURRENT_PROCESS) {
+                procId = currentProcessId;
+            }
             HotSpotServiceabilityAgentRequest<P, R> request = 
                     new HotSpotServiceabilityAgentRequest<P, R>(procId, pipelineFile.getAbsolutePath(), 
                                                                 worker, param, timeoutInMsecs, 
@@ -496,7 +496,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
             // If process attach failed,
             if (exitCode == PROCESS_ATTACH_FAILED_EXIT_CODE) {
                 throw new ProcessAttachFailedException("Attaching as Hotspot SA to current process " + 
-                                                       "(id=" + procId + ") from external process failed");
+                                                       "(id=" + currentProcessId + ") from external process failed");
             }
 
             // At first, check errors
@@ -807,7 +807,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  null, timeout, pipelineSize);
+                                  null, timeout, pipelineSize, currentProcessId);
     }
 
     @SuppressWarnings("unchecked")
@@ -815,51 +815,51 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  param, timeout, pipelineSize);
+                                  param, timeout, pipelineSize, currentProcessId);
     }
     
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker) {
-        return executeOnHotSpotSAInternal(worker, null, timeout, pipelineSize);
+        return executeOnHotSpotSAInternal(worker, null, timeout, pipelineSize, currentProcessId);
     }
 
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param) {
-        return executeOnHotSpotSAInternal(worker, param, timeout, pipelineSize);
+        return executeOnHotSpotSAInternal(worker, param, timeout, pipelineSize, currentProcessId);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
-            int timeoutInMsecs, int pipelineSizeInBytes) {
+            int timeoutInMsecs, int pipelineSizeInBytes, int processId) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  null, timeoutInMsecs, pipelineSizeInBytes);
+                                  null, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass,
-            P param, int timeoutInMsecs, int pipelineSizeInBytes) {
+            P param, int timeoutInMsecs, int pipelineSizeInBytes, int processId) {
         return executeOnHotSpotSA((HotSpotServiceabilityAgentWorker<P, R>) createWorkerInstance(workerClass), 
-                                  param, timeoutInMsecs, pipelineSizeInBytes);
+                                  param, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
 
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  
-            int timeoutInMsecs, int pipelineSizeInBytes) {
-        return executeOnHotSpotSAInternal(worker, null, timeoutInMsecs, pipelineSizeInBytes);
+            int timeoutInMsecs, int pipelineSizeInBytes, int processId) {
+        return executeOnHotSpotSAInternal(worker, null, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
     
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
-            int timeoutInMsecs, int pipelineSizeInBytes) {
-        return executeOnHotSpotSAInternal(worker, param, timeoutInMsecs, pipelineSizeInBytes);
+            int timeoutInMsecs, int pipelineSizeInBytes, int processId) {
+        return executeOnHotSpotSAInternal(worker, param, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
 
     @Override
@@ -867,17 +867,18 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         return executeOnHotSpotSA(HotSpotSACompressedReferencesWorker.class, 
                                   HotSpotServiceabilityAgentParameter.VOID);
     }
-    
-    @Override
-    public HotSpotSAInstanceCountResult getInstanceCount(Class<?> clazz) {
-        return executeOnHotSpotSA(HotSpotSAInstanceCountWorker.class,
-                                  new HotSpotSAInstanceCountParameter(clazz));
-    }
-    
+
     @Override
     public HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames) {
         return executeOnHotSpotSA(HotSpotSAStackTracerWorker.class,
                                   new HotSpotSAStackTracerParameter(threadNames));
+    }
+    
+    @Override
+    public HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames, int processId) {
+        return executeOnHotspotSA(HotSpotSAStackTracerWorker.class, 
+                                  new HotSpotSAStackTracerParameter(threadNames), 
+                                  timeout, pipelineSize, processId);
     }
 
     public String details() {
@@ -885,7 +886,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
 
         return "HotspotServiceabilityAgentSupport [" + 
                 "enable=" + enable + 
-                ", processId=" + processId + 
+                ", processId=" + currentProcessId + 
                 ", classpathForAgent=" + classpathForAgent + 
                 ", errorMessage=" + errorMessage + "]";
     }

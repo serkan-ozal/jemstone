@@ -41,11 +41,24 @@ public class HotSpotSAStackTracerWorker
         implements HotSpotServiceabilityAgentWorker<HotSpotSAStackTracerParameter,  
                                                     HotSpotSAStackTracerResult> {
 
+    private static java.lang.reflect.Method getAddressMethod;
+    
+    static {
+        try {
+            getAddressMethod = Method.class.getDeclaredMethod("getAddress");
+        } catch (NoSuchMethodException e) {
+            getAddressMethod = null;
+        } catch (SecurityException e) {
+            getAddressMethod = null;
+        }
+    }
+    
+    private static final String JEMSTONE_HOTSPOT_SA_PACKAGE_PREFIX = "tr.com.serkanozal.jemstone.sa";
     @Override
     public HotSpotSAStackTracerResult run(HotSpotServiceabilityAgentContext context,
                                           HotSpotSAStackTracerParameter param) {
         HotSpotSAStackTracerResult result = new HotSpotSAStackTracerResult();
-        Set<String> threadNames = param.getThreadNames();
+        Set<String> threadNames = param != null ? param.getThreadNames() : null;
         Threads threads = context.getVM().getThreads();
         for (JavaThread cur = threads.first(); cur != null; cur = cur.next()) {
             if (cur.isJavaThread() && (threadNames == null || threadNames.contains(cur.getThreadName()))) {
@@ -55,8 +68,17 @@ public class HotSpotSAStackTracerWorker
                     for (JavaVFrame vf = cur.getLastJavaVFrameDbg(); vf != null; vf = vf.javaSender()) {
                         try {
                             Method method = vf.getMethod();
-                            tty.print("    |- " + method.externalNameAndSignature() +
-                                      " @bci=" + vf.getBCI());
+                            String methodNameAndSignature = method.externalNameAndSignature();
+                            if (methodNameAndSignature.startsWith(JEMSTONE_HOTSPOT_SA_PACKAGE_PREFIX)) {
+                                os = null;
+                                tty = null;
+                                continue;
+                            }
+                            if (os == null) {
+                                os = new ByteArrayOutputStream();
+                                tty = new PrintStream(os);
+                            }
+                            tty.print("    |- " + methodNameAndSignature + " @bci=" + vf.getBCI());
     
                             int lineNumber = method.getLineNumberFromBCI(vf.getBCI());
                             if (lineNumber != -1) {
@@ -68,8 +90,10 @@ public class HotSpotSAStackTracerWorker
                                 tty.print(", pc=" + pc);
                             }
     
-                            tty.print(", Method*=" + method.getAddress());
-    
+                            if (getAddressMethod != null) {
+                                tty.print(", Method*=" + getAddressMethod.invoke(method));
+                            }
+                            
                             if (vf.isCompiledFrame()) {
                                 tty.print(" (Compiled frame");
                                 if (vf.isDeoptimized()) {
