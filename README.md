@@ -44,21 +44,19 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 3. Configurations
 ==============
 
-* **`jemstone.skipHotspotSAInit`:** 
+* **`jemstone.skipHotspotSAAttach`:** Skips HotSpot Serviceability Agent attaching to current process. This means, no HotSpot SA support. Default value is `false`.
 
-* **`jemstone.skipHotspotSAAttach`:** 
+* **`jemstone.skipClasspathLookup`:** Skips looking for HotSpot Serviceability Agent classes at classpath. Default value is `false`.
 
-* **`jemstone.skipClasspathLookup`:** 
+* **`jemstone.skipJdkHomeLookup`:** Skips looking for HotSpot Serviceability Agent classes at `$JDK_HOME/lib/sa-jdi.jar`. Default value is `false`.
 
-* **`jemstone.skipJdkHomeLookup`:** 
+* **`jemstone.skipAllJarLookup`:** Skips looking for HotSpot Serviceability Agent classes from a composite [jar] (https://github.com/serkan-ozal/maven-repository/blob/master/com/sun/tools/sa-jdi-all/1.0/sa-jdi-all-1.0.jar) that contains HotSpot Serviceability Agent classes for different JVM versions (6, 7 and 8) at different directories inside it and these classes are loaded via JVM version aware classloader `tr.com.serkanozal.jemstone.sa.impl.HotSpotJvmAwareSaJdiClassLoader`. Default value is `false`.
 
-* **`jemstone.skipAllJarLookup`:** 
+* **`jemstone.pipelineSize`:** Maximum size of data in bytes transferred through pipeline between current process and HotSpot SA process. Since, under the hood, memory mapped file is used for interprocess communication, this value determines the size of the memory mapped file. Default value is `16384` bytes (`16` kilobyte).
 
-* **`jemstone.pipelineSize`:** 
+* **`jemstone.timeout`:** Timeout value in milliseconds for getting result from HotSpot SA process. Default value is `5000` milliseconds (`5` seconds).
 
-* **`jemstone.timeout`:** 
-
-* **`jemstone.tryWithSudo`:**
+* **`jemstone.tryWithSudo`:** Skips using `sudo` for creating HotSpot SA process to attach current process on `Unix` based, `MacOSX` and `Solaris` operating systems. Default value is `false`.
 
 
 4. Usage
