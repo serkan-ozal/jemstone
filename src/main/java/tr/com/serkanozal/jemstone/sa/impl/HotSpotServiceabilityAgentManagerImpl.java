@@ -123,6 +123,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         timeout = Integer.getInteger(TIMEOUT_PARAMETER, DEFAULT_TIMEOUT_IN_MSECS);
         pipelineSize = Integer.getInteger(PIPELINE_SIZE_PARAMETER, 
                                           DEFAULT_PIPELINE_SIZE_IN_BYTES);
+
         if (!skipInit) {
             if (Boolean.getBoolean(SKIP_HOTSPOT_SA_ATTACH_FLAG)) {
                 active = false;
@@ -214,7 +215,6 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                             
                             additionalVmArguments.put("java.system.class.loader", 
                                                       HotSpotJvmAwareSaJdiClassLoader.class.getName());
-                            additionalVmArguments.put("sun.jvm.hotspot.runtime.VM.disableVersionCheck", "true");
                             additionalVmArguments.put(HotSpotJvmAwareSaJdiClassLoader.URL_CLASSPATH_VM_ARGUMENT_NAME, 
                                                       ClasspathUtil.getClasspathUrls().toString());
                         } catch (Throwable t) {
@@ -510,7 +510,10 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                 errBuilder.append(line).append("\n");
             }
             if (errBuilder != null) {
-                throw new RuntimeException(errBuilder.toString());
+                String errStr = errBuilder.toString();
+                if (!errStr.startsWith("WARNING")) {
+                    throw new RuntimeException(errStr);
+                }    
             }
 
             in = new ObjectInputStream(is);
@@ -713,6 +716,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
 
             System.setProperty("sun.jvm.hotspot.debugger.useProcDebugger", "true");
             System.setProperty("sun.jvm.hotspot.debugger.useWindbgDebugger", "true");
+            System.setProperty("sun.jvm.hotspot.runtime.VM.disableVersionCheck", "true");
 
             final HotSpotServiceabilityAgentRequest<P, R> request = 
                     (HotSpotServiceabilityAgentRequest<P, R>) in.readObject();

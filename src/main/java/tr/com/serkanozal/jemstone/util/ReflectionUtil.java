@@ -24,8 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 
 /**
  * This class contains utility method for Java Reflection API.
@@ -34,7 +33,7 @@ import org.apache.log4j.Logger;
  */
 public class ReflectionUtil {
 
-    private static final Logger logger = Logger.getLogger(ReflectionUtil.class);
+    private static final Logger logger = Logger.getLogger(ReflectionUtil.class.getName());
 
     private ReflectionUtil() {
 
@@ -46,9 +45,9 @@ public class ReflectionUtil {
             try {
                 field = cls.getDeclaredField(fieldName);
             } catch (SecurityException e) {
-                logger.error("Unable to get field " + fieldName + " from class " + cls.getName(), e);
+                logger.finest("Unable to get field " + fieldName + " from class " + cls.getName() + ": " + e.getMessage());
             } catch (NoSuchFieldException e) {
-                logger.debug("Unable to get field " + fieldName + " from class " + cls.getName() + ". "
+                logger.fine("Unable to get field " + fieldName + " from class " + cls.getName() + ". "
                         + "If there is any super class for class " + cls.getName()
                         + ", it will be tried for getting field ...");
             }
@@ -111,7 +110,7 @@ public class ReflectionUtil {
                 }
             }
             if (method == null) {
-                logger.warn("Unable to get method " + methodName + " from class " + cls.getName() + ". "
+                logger.finer("Unable to get method " + methodName + " from class " + cls.getName() + ". "
                         + "If there is any super class for class " + cls.getName()
                         + ", it will be tried for getting method ...");
             } else {
@@ -154,7 +153,7 @@ public class ReflectionUtil {
                 }
             }
             if (method == null) {
-                logger.warn("Unable to get method " + methodName + " from class " + cls.getName() + ". "
+                logger.finer("Unable to get method " + methodName + " from class " + cls.getName() + ". "
                         + "If there is any super class for class " + cls.getName()
                         + ", it will be tried for getting method ...");
             } else {
@@ -297,7 +296,7 @@ public class ReflectionUtil {
             try {
                 return Class.forName(clsName);
             } catch (ClassNotFoundException e) {
-                logger.error("Unable to get class " + clsName, e);
+                logger.finest("Unable to get class " + clsName + ": " + e.getMessage());
                 return null;
             }
         }

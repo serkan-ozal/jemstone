@@ -28,8 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.log4j.Logger;
+import java.util.logging.Logger;
 
 /**
  * This class contains utility methods about classpath.
@@ -38,7 +37,7 @@ import org.apache.log4j.Logger;
  */
 public class ClasspathUtil {
 
-    private static final Logger logger = Logger.getLogger(ClasspathUtil.class);
+    private static final Logger logger = Logger.getLogger(ClasspathUtil.class.getName());
 
     private static Set<URL> classpathUrls;
     private static String fullClasspath;
@@ -81,8 +80,8 @@ public class ClasspathUtil {
                 urls.add(new File(classpathProperty).toURI().toURL());
             }
         } catch (MalformedURLException e) {
-            logger.error("Error occured while getting classpath from " + 
-                         "system property \"java.class.path\"", e);
+            logger.finest("Error occured while getting classpath from " + 
+                          "system property \"java.class.path\":" + e.getMessage());
         }
 
         String surefireProperty = System.getProperty("surefire.test.class.path");
@@ -94,8 +93,8 @@ public class ClasspathUtil {
                     urls.add(new File(surefireClasspathProperty).toURI().toURL());
                 }
             } catch (MalformedURLException e) {
-                logger.error("Error occured while getting classpath from " + 
-                             "system property \"surefire.test.class.path\"", e);
+                logger.finest("Error occured while getting classpath from " + 
+                              "system property \"surefire.test.class.path\":" + e.getMessage());
             }
         }
 

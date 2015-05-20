@@ -21,7 +21,6 @@
         
         <sa_jdi.version>1.8</sa_jdi.version> 
         <sa-jdi-all.version>1.0</sa-jdi-all.version> 
-        <log4j.version>1.2.16</log4j.version>
         <junit.version>4.11</junit.version>
 
     </properties>
@@ -135,11 +134,6 @@
             <groupId>com.sun.tools</groupId>
             <artifactId>sa-jdi-all</artifactId>
             <version>${sa-jdi-all.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>${log4j.version}</version>
         </dependency>
         <!-- test -->
         <dependency>
