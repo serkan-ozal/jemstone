@@ -18,11 +18,15 @@ package tr.com.serkanozal.jemstone.sa.impl.stacktracer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import java.util.Set;
 
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.debugger.AddressException;
 import sun.jvm.hotspot.debugger.OopHandle;
+import sun.jvm.hotspot.debugger.UnalignedAddressException;
+import sun.jvm.hotspot.debugger.UnmappedAddressException;
 import sun.jvm.hotspot.memory.SystemDictionary;
 import sun.jvm.hotspot.oops.ConstantPool;
 import sun.jvm.hotspot.oops.Field;
@@ -51,7 +55,20 @@ public class HotSpotSAStackTracerWorker
     
     private static final String JEMSTONE_HOTSPOT_SA_PACKAGE_PREFIX = "tr.com.serkanozal.jemstone.sa";
     
+    // Java type codes
+    private static final int JVM_SIGNATURE_BOOLEAN = 'Z';
+    private static final int JVM_SIGNATURE_CHAR    = 'C';
+    private static final int JVM_SIGNATURE_BYTE    = 'B';
+    private static final int JVM_SIGNATURE_SHORT   = 'S';
+    private static final int JVM_SIGNATURE_INT     = 'I';
+    private static final int JVM_SIGNATURE_LONG    = 'J';
+    private static final int JVM_SIGNATURE_FLOAT   = 'F';
+    private static final int JVM_SIGNATURE_DOUBLE  = 'D';
+    private static final int JVM_SIGNATURE_ARRAY   = '[';
+    private static final int JVM_SIGNATURE_CLASS   = 'L';
+    
     private static java.lang.reflect.Method getAddressMethod;
+    private static java.lang.reflect.Constructor<?> instanceKlassConstructor;
 
     private long byteArrayBaseOffset;
     private long booleanArrayBaseOffset;
@@ -72,8 +89,8 @@ public class HotSpotSAStackTracerWorker
     private int longSize;
     private int doubleSize;
     private int oopSize;
+    private int objectMarkHeaderSize;
     
-    private InstanceKlass stringKlass;
     private Field stringValueArrayField;
     private int arrayLengthOffset;
     private boolean compressedOopsEnabled;
@@ -85,6 +102,14 @@ public class HotSpotSAStackTracerWorker
             
         } catch (SecurityException e) {
             
+        }
+        
+        try {
+            instanceKlassConstructor = InstanceKlass.class.getConstructor(Address.class);
+        } catch (NoSuchMethodException e) {
+
+        } catch (SecurityException e) {
+
         }
     }
 
@@ -109,10 +134,11 @@ public class HotSpotSAStackTracerWorker
         floatSize = (int) context.getVM().getObjectHeap().getFloatSize();
         longSize = (int) context.getVM().getObjectHeap().getLongSize();
         doubleSize = (int) context.getVM().getObjectHeap().getDoubleSize();
-        oopSize = (int) context.getVM().getObjectHeap().getOopSize();
+        oopSize = (int) context.getVM().getHeapOopSize();
+        objectMarkHeaderSize = (int) context.getVM().getAddressSize();
         
         try {
-            stringKlass = SystemDictionary.getStringKlass();
+            InstanceKlass stringKlass = SystemDictionary.getStringKlass();
             stringValueArrayField = 
                 stringKlass.findField("value", char[].class.getName());
         } catch (Throwable t) {
@@ -297,7 +323,7 @@ public class HotSpotSAStackTracerWorker
     }
    
     private void printLocalVariable(PrintStream tty, StackValueCollection values, String type, 
-            int slot, int index) {
+            int slot, int index) throws Exception {
         Class<?> valueClass = ReflectionUtil.signatureToClass(type);
         if (valueClass.isPrimitive()) {
             printPrimitiveValue(tty, values, slot, index, valueClass);
@@ -350,7 +376,7 @@ public class HotSpotSAStackTracerWorker
     
     private void printStringValue(PrintStream tty, StackValueCollection values, int slot) {
         OopHandle strOopHandle = values.oopHandleAt(slot);
-        if (stringKlass != null) {
+        if (stringValueArrayField != null) {
             OopHandle valueOopHandle = null;
             if (compressedOopsEnabled) {
                 valueOopHandle = strOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
@@ -373,28 +399,246 @@ public class HotSpotSAStackTracerWorker
         }
     }
     
+    @SuppressWarnings("unchecked")
     private void printComplexValue(PrintStream tty, StackValueCollection values,  String type, 
             int slot, int index, Class<?> valueClass) {
-        // TODO Print fields instead of address
+        OopHandle oop = values.oopHandleAt(slot);
         tty.print(String.format("%-30s %s",
-                        values.oopHandleAt(slot) + " (address)",
-                        ReflectionUtil.normalizeSignature(type)));
+                oop + " (address)",
+                ReflectionUtil.normalizeSignature(type)));
+        tty.println();
+        
+        InstanceKlass klass = SystemDictionaryHelper.findInstanceKlass(valueClass.getName());
+        List<Field> fields = klass.getAllFields();
+        tty.println("\t\tfields:");
+        tty.println(String.format("\t\t       %-25s %-30s %s", "name", "value", "type"));
+        tty.println("\t\t    ==============================================================================");
+        for (Field field : fields) {
+            tty.print("\t\t    |- ");
+            Symbol fieldSignature = field.getSignature();
+            String fieldType = ReflectionUtil.normalizeSignature(fieldSignature.asString());
+            char typeCode = (char) fieldSignature.getByteAt(0);
+            String fieldName = field.getID().getName();
+            switch (typeCode) {
+                case JVM_SIGNATURE_BOOLEAN:
+                    tty.print(String.format("%-25s %-30s %s", 
+                                fieldName,
+                                oop.getJBooleanAt(field.getOffset()), 
+                                "boolean"));
+                    break;
+                case JVM_SIGNATURE_CHAR:
+                    tty.print(String.format("%-25s %-30c %s", 
+                                fieldName,
+                                oop.getJCharAt(field.getOffset()), 
+                                "char"));
+                    break;
+                case JVM_SIGNATURE_BYTE:
+                    tty.print(String.format("%-25s %-30d %s", 
+                                fieldName,
+                                oop.getJByteAt(field.getOffset()), 
+                                "byte"));
+                    break;
+                case JVM_SIGNATURE_SHORT:
+                    tty.print(String.format("%-25s %-30d %s", 
+                                fieldName,
+                                oop.getJShortAt(field.getOffset()), 
+                                "short"));
+                    break;
+                case JVM_SIGNATURE_INT:
+                    tty.print(String.format("%-25s %-30d %s",
+                                fieldName,
+                                oop.getJIntAt(field.getOffset()), 
+                                "int"));
+                    break;
+                case JVM_SIGNATURE_FLOAT:
+                    tty.print(String.format("%-25s %-30f %s", 
+                                fieldName,
+                                oop.getJFloatAt(field.getOffset()), 
+                                "float"));
+                    break;
+                case JVM_SIGNATURE_LONG:
+                    tty.print(String.format("%-25s %-30d %s", 
+                                fieldName, 
+                                oop.getJLongAt(field.getOffset()), 
+                                "long"));
+                    break;
+                case JVM_SIGNATURE_DOUBLE:
+                    tty.print(String.format("%-25s %-30f %s", 
+                                fieldName,
+                                oop.getJDoubleAt(field.getOffset()), 
+                                "double"));
+                    break;
+                case JVM_SIGNATURE_CLASS:
+                case JVM_SIGNATURE_ARRAY: {
+                    if (String.class.getName().equals(fieldType)) {
+                        OopHandle strOopHandle;
+                        if (compressedOopsEnabled) {
+                            strOopHandle = oop.getCompOopHandleAt(field.getOffset());
+                        } else {
+                            strOopHandle = oop.getOopHandleAt(field.getOffset());
+                        }
+                        if (stringValueArrayField != null) {
+                            OopHandle valueOopHandle;
+                            if (compressedOopsEnabled) {
+                                valueOopHandle = strOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
+                            } else {
+                                valueOopHandle = strOopHandle.getOopHandleAt(stringValueArrayField.getOffset());
+                            }
+                            StringBuilder sb = new StringBuilder();
+                            int length = valueOopHandle.getJIntAt(arrayLengthOffset);
+                            for (int i = 0; i < length; i++) {
+                                long offset = charArrayBaseOffset + i * charSize;
+                                sb.append(valueOopHandle.getJCharAt(offset));
+                            }
+                            tty.print(String.format("%-25s %-30s %s",
+                                        fieldName,
+                                        sb.toString(),
+                                        String.class.getName()));
+                        } else {
+                            tty.print(String.format("%-25s %-30s %s",
+                                        fieldName,
+                                        strOopHandle + " (address)",
+                                        String.class.getName()));
+                        }
+                    } else {
+                        OopHandle handle;
+                        if (compressedOopsEnabled) {
+                          handle = oop.getCompOopHandleAt(field.getOffset());
+                        } else {
+                          handle = oop.getOopHandleAt(field.getOffset());
+                        }
+                        tty.print(String.format("%-25s %-30s %s",
+                                    fieldName,
+                                    handle + " (address)",
+                                    fieldType));
+                    }
+                    break;
+                }
+                default:
+                    throw new IllegalArgumentException("Unknown type code: " + typeCode);
+            }
+            tty.println();
+        }
     }
     
     private void printPrimitiveArrayValue(PrintStream tty, StackValueCollection values,  String type, 
             int slot, int index, Class<?> valueClass, Class<?> elementClass) {
-        // TODO Print elements instead of address
-        tty.print(String.format("%-30s %s",
-                        values.oopHandleAt(slot) + " (address)",
+        OopHandle arrayOopHandle = values.oopHandleAt(slot);
+
+        tty.println(String.format("%-30s %s",
+                        arrayOopHandle + " (address)",
                         ReflectionUtil.normalizeSignature(type)));
+        
+        tty.println("\t\telements:");
+        tty.println("\t\t    ==============================================================================");
+        int length = arrayOopHandle.getJIntAt(arrayLengthOffset);
+        if (elementClass.equals(byte.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = byteArrayBaseOffset + i * byteSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJByteAt(offset));
+            }
+        } else if (elementClass.equals(boolean.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = booleanArrayBaseOffset + i * booleanSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJBooleanAt(offset));
+            }
+        } else if (elementClass.equals(char.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = charArrayBaseOffset + i * charSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJCharAt(offset));
+            }
+        } else if (elementClass.equals(short.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = shortArrayBaseOffset + i * shortSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJShortAt(offset));
+            }
+        } else if (elementClass.equals(int.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = intArrayBaseOffset + i * intSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJIntAt(offset));
+            }
+        } else if (elementClass.equals(float.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = floatArrayBaseOffset + i * floatSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJFloatAt(offset));
+            }
+        } else if (elementClass.equals(long.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = longArrayBaseOffset + i * longSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJLongAt(offset));
+            }
+        } else if (elementClass.equals(double.class)) {
+            for (int i = 0; i < length; i++) {
+                long offset = doubleArrayBaseOffset + i * doubleSize;
+                tty.println("\t\t    |- [" + i + "]: " + arrayOopHandle.getJDoubleAt(offset));
+            }
+        } else {
+            throw new IllegalArgumentException(elementClass.getName() + 
+                    " is not primitive element type for array");
+        }
     }
     
     private void printComplexArrayValue(PrintStream tty, StackValueCollection values,  String type, 
-            int slot, int index, Class<?> valueClass, Class<?> elementClass) {
-        // TODO Print elements instead of address
-        tty.print(String.format("%-30s %s",
-                        values.oopHandleAt(slot) + " (address)",
+            int slot, int index, Class<?> valueClass, Class<?> elementClass) 
+                    throws ClassNotFoundException, UnmappedAddressException, UnalignedAddressException, 
+                           InstantiationException, IllegalAccessException, 
+                           IllegalArgumentException, InvocationTargetException {
+        OopHandle arrayOopHandle = values.oopHandleAt(slot);
+
+        tty.println(String.format("%-30s %s",
+                        arrayOopHandle + " (address)",
                         ReflectionUtil.normalizeSignature(type)));
+        
+        tty.println("\t\telements:");
+        tty.println("\t\t    ==============================================================================");
+        int length = arrayOopHandle.getJIntAt(arrayLengthOffset);
+        for (int i = 0; i < length; i++) {
+            long offset = objectArrayBaseOffset + i * oopSize;
+            OopHandle elementOopHandle;
+            InstanceKlass elementKlass = null;
+            String elementType;
+            if (compressedOopsEnabled) {
+                elementOopHandle = arrayOopHandle.getCompOopHandleAt(offset);
+                if (instanceKlassConstructor != null) {
+                    elementKlass =  
+                            (InstanceKlass) instanceKlassConstructor.
+                                newInstance(elementOopHandle.getCompOopAddressAt(objectMarkHeaderSize));
+                } 
+            } else {
+                elementOopHandle = arrayOopHandle.getOopHandleAt(offset);
+                if (instanceKlassConstructor != null) {
+                    elementKlass =  
+                            (InstanceKlass) instanceKlassConstructor.
+                                newInstance(elementOopHandle.getAddressAt(objectMarkHeaderSize));
+                } 
+            }
+            if (elementKlass != null) {
+                elementType = Class.forName(elementKlass.getName().asString().replace("/", ".")).getName();
+            } else {
+                elementType = elementClass.getName();
+            }
+            if (String.class.getName().equals(elementType)) {
+                if (stringValueArrayField != null) {
+                    OopHandle valueOopHandle;
+                    if (compressedOopsEnabled) {
+                        valueOopHandle = elementOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
+                    } else {
+                        valueOopHandle = elementOopHandle.getOopHandleAt(stringValueArrayField.getOffset());
+                    }
+                    StringBuilder sb = new StringBuilder();
+                    int strLength = valueOopHandle.getJIntAt(arrayLengthOffset);
+                    for (int j = 0; j < strLength; j++) {
+                        long charOffset = charArrayBaseOffset + j * charSize;
+                        sb.append(valueOopHandle.getJCharAt(charOffset));
+                    }
+                    tty.println("\t\t    |- [" + i + "]: " + sb.toString() + " (" + String.class.getName() + ")");
+                } else {
+                    tty.println("\t\t    |- [" + i + "]: " + elementOopHandle + " (" + String.class.getName() + ")");
+                }
+            } else {
+                tty.println("\t\t    |- [" + i + "]: " + elementOopHandle + " (" + elementType + ")");
+            }
+        }
     }
     
 }

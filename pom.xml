@@ -11,15 +11,15 @@
         
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         
-        <source.compiler.version>1.7</source.compiler.version>
-        <target.compiler.version>1.7</target.compiler.version>
+        <source.compiler.version>1.8</source.compiler.version>
+        <target.compiler.version>1.8</target.compiler.version>
         
         <maven.compiler.plugin.version>2.3.2</maven.compiler.plugin.version>
         <maven.resources.plugin.version>2.4</maven.resources.plugin.version>
         <maven.surefire.plugin.version>2.9</maven.surefire.plugin.version>
         <maven.deploy.plugin.version>2.6</maven.deploy.plugin.version>
         
-        <sa_jdi.version>1.7</sa_jdi.version> 
+        <sa_jdi.version>1.8</sa_jdi.version> 
         <sa-jdi-all.version>1.0</sa-jdi-all.version> 
         <junit.version>4.11</junit.version>
 

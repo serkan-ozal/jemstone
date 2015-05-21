@@ -64,8 +64,42 @@ public class Demo {
     @SuppressWarnings("unused")
     private static void method2(boolean b2, int i2, float f2, long l2, double d2, char c2, String s2) {
         int localVar_method2 = 3000;
+        Foo foo = new Foo();
+        int[] intArray = {10, 20, 30};
+        Object[] objArray = {
+                new Foo(true, 1000, 2000.0, "foo.s1", new Bar()),
+                "String in object array"
+            };
+        
         System.out.println(hotSpotSAManager.getStackTraces(
                 new HashSet<String>(Arrays.asList(Thread.currentThread().getName()))));
+    }
+    
+    public static class Foo {
+        
+        boolean b = true;
+        int i = 100;
+        double d = 200.0;
+        String s = "foo.s";
+        Bar bar = new Bar();
+        
+        Foo() {
+            
+        }
+
+        public Foo(boolean b, int i, double d, String s, Bar bar) {
+            super();
+            this.b = b;
+            this.i = i;
+            this.d = d;
+            this.s = s;
+            this.bar = bar;
+        }
+        
+    }
+    
+    public static class Bar {
+        
     }
 
     @SuppressWarnings("serial")
