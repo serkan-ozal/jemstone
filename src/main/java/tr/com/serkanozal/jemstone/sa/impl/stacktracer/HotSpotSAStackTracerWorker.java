@@ -23,6 +23,7 @@ import java.util.Set;
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.debugger.AddressException;
 import sun.jvm.hotspot.debugger.OopHandle;
+import sun.jvm.hotspot.memory.SystemDictionary;
 import sun.jvm.hotspot.oops.ConstantPool;
 import sun.jvm.hotspot.oops.Field;
 import sun.jvm.hotspot.oops.InstanceKlass;
@@ -110,10 +111,14 @@ public class HotSpotSAStackTracerWorker
         doubleSize = (int) context.getVM().getObjectHeap().getDoubleSize();
         oopSize = (int) context.getVM().getObjectHeap().getOopSize();
         
-        stringKlass = 
-                SystemDictionaryHelper.findInstanceKlass(String.class.getName());
-        stringValueArrayField = 
+        try {
+            stringKlass = SystemDictionary.getStringKlass();
+            stringValueArrayField = 
                 stringKlass.findField("value", char[].class.getName());
+        } catch (Throwable t) {
+            // String support disabled
+        }
+        
         compressedOopsEnabled = vm.isCompressedOopsEnabled();
         Type type = vm.getTypeDataBase().lookupType("arrayOopDesc");
         int typeSize = (int)type.getSize();
@@ -345,21 +350,27 @@ public class HotSpotSAStackTracerWorker
     
     private void printStringValue(PrintStream tty, StackValueCollection values, int slot) {
         OopHandle strOopHandle = values.oopHandleAt(slot);
-        OopHandle valueOopHandle = null;
-        if (compressedOopsEnabled) {
-            valueOopHandle = strOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
+        if (stringKlass != null) {
+            OopHandle valueOopHandle = null;
+            if (compressedOopsEnabled) {
+                valueOopHandle = strOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
+            } else {
+                valueOopHandle = strOopHandle.getOopHandleAt(stringValueArrayField.getOffset());
+            }
+            StringBuilder sb = new StringBuilder();
+            int length = valueOopHandle.getJIntAt(arrayLengthOffset);
+            for (int i = 0; i < length; i++) {
+                long offset = charArrayBaseOffset + i * charSize;
+                sb.append(valueOopHandle.getJCharAt(offset));
+            }
+            tty.print(String.format("%-30s %s",
+                          sb.toString(),
+                          String.class.getName()));
         } else {
-            valueOopHandle = strOopHandle.getOopHandleAt(stringValueArrayField.getOffset());
+            tty.print(String.format("%-30s %s",
+                        strOopHandle + " (address)",
+                        String.class.getName()));
         }
-        StringBuilder sb = new StringBuilder();
-        int length = valueOopHandle.getJIntAt(arrayLengthOffset);
-        for (int i = 0; i < length; i++) {
-            long offset = charArrayBaseOffset + i * charSize;
-            sb.append(valueOopHandle.getJCharAt(offset));
-        }
-        tty.print(String.format("%-30s %s",
-                      sb.toString(),
-                      String.class.getName()));
     }
     
     private void printComplexValue(PrintStream tty, StackValueCollection values,  String type, 

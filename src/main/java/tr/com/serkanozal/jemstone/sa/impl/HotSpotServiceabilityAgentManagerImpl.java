@@ -495,8 +495,8 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
 
             // If process attach failed,
             if (exitCode == PROCESS_ATTACH_FAILED_EXIT_CODE) {
-                throw new ProcessAttachFailedException("Attaching as Hotspot SA to current process " + 
-                                                       "(id=" + currentProcessId + ") from external process failed");
+                throw new ProcessAttachFailedException("Attaching as Hotspot SA to process " + 
+                                                       "(id=" + procId + ") from external process failed");
             }
 
             // At first, check errors
