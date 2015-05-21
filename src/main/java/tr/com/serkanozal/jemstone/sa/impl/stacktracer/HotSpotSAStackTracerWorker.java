@@ -51,11 +51,29 @@ public class HotSpotSAStackTracerWorker
     private static final String JEMSTONE_HOTSPOT_SA_PACKAGE_PREFIX = "tr.com.serkanozal.jemstone.sa";
     
     private static java.lang.reflect.Method getAddressMethod;
+
+    private long byteArrayBaseOffset;
+    private long booleanArrayBaseOffset;
+    private long charArrayBaseOffset;
+    private long shortArrayBaseOffset;
+    private long intArrayBaseOffset;
+    private long floatArrayBaseOffset;
+    private long longArrayBaseOffset;
+    private long doubleArrayBaseOffset;
+    private long objectArrayBaseOffset;
+    
+    private int byteSize;
+    private int booleanSize;
+    private int charSize;
+    private int shortSize;
+    private int intSize;
+    private int floatSize;
+    private int longSize;
+    private int doubleSize;
+    private int oopSize;
     
     private InstanceKlass stringKlass;
     private Field stringValueArrayField;
-    private long charArrayBaseOffset;
-    private int charSize;
     private int arrayLengthOffset;
     private boolean compressedOopsEnabled;
     
@@ -63,20 +81,39 @@ public class HotSpotSAStackTracerWorker
         try {
             getAddressMethod = Method.class.getDeclaredMethod("getAddress");
         } catch (NoSuchMethodException e) {
-            getAddressMethod = null;
+            
         } catch (SecurityException e) {
-            getAddressMethod = null;
+            
         }
     }
 
     private void init(HotSpotServiceabilityAgentContext context) {
+        VM vm = context.getVM(); 
+        
+        byteArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_BYTE);
+        booleanArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_BOOLEAN);
+        charArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_CHAR);
+        shortArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_SHORT);
+        intArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_INT);
+        floatArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_FLOAT);
+        longArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_LONG);
+        doubleArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_DOUBLE);
+        objectArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_OBJECT);
+        
+        byteSize = (int) context.getVM().getObjectHeap().getByteSize();
+        booleanSize = (int) context.getVM().getObjectHeap().getBooleanSize();
+        charSize = (int) context.getVM().getObjectHeap().getCharSize();
+        shortSize = (int) context.getVM().getObjectHeap().getShortSize();
+        intSize = (int) context.getVM().getObjectHeap().getIntSize();
+        floatSize = (int) context.getVM().getObjectHeap().getFloatSize();
+        longSize = (int) context.getVM().getObjectHeap().getLongSize();
+        doubleSize = (int) context.getVM().getObjectHeap().getDoubleSize();
+        oopSize = (int) context.getVM().getObjectHeap().getOopSize();
+        
         stringKlass = 
                 SystemDictionaryHelper.findInstanceKlass(String.class.getName());
         stringValueArrayField = 
                 stringKlass.findField("value", char[].class.getName());
-        charArrayBaseOffset = TypeArray.baseOffsetInBytes(BasicType.T_CHAR);
-        charSize = (int) context.getVM().getObjectHeap().getCharSize();
-        VM vm = context.getVM(); 
         compressedOopsEnabled = vm.isCompressedOopsEnabled();
         Type type = vm.getTypeDataBase().lookupType("arrayOopDesc");
         int typeSize = (int)type.getSize();
@@ -257,6 +294,26 @@ public class HotSpotSAStackTracerWorker
     private void printLocalVariable(PrintStream tty, StackValueCollection values, String type, 
             int slot, int index) {
         Class<?> valueClass = ReflectionUtil.signatureToClass(type);
+        if (valueClass.isPrimitive()) {
+            printPrimitiveValue(tty, values, slot, index, valueClass);
+        } else if (valueClass.equals(String.class)) { 
+            printStringValue(tty, values, slot);
+        } else if (valueClass.isArray()) { 
+            Class<?> elementClass = valueClass.getComponentType();
+            if (elementClass.isPrimitive()) {
+                printPrimitiveArrayValue(tty, values, type, slot, index, 
+                                         valueClass, elementClass);
+            } else {
+                printComplexArrayValue(tty, values, type, slot, index, 
+                                       valueClass, elementClass);
+            }
+        } else {
+            printComplexValue(tty, values, type, slot, index, valueClass);
+        }
+    }
+    
+    private void printPrimitiveValue(PrintStream tty, StackValueCollection values, 
+            int slot, int index, Class<?> valueClass) {
         if (valueClass.equals(byte.class)) {
             byte val = values.byteAt(slot);
             tty.print(String.format("%-30d %s", val, "byte"));
@@ -281,28 +338,52 @@ public class HotSpotSAStackTracerWorker
         } else if (valueClass.equals(double.class)) {
             double val = Double.longBitsToDouble(values.get(index).getInteger());
             tty.print(String.format("%-30f %s", val, "double"));
-        } else if (valueClass.equals(String.class)) { 
-            OopHandle strOopHandle = values.oopHandleAt(slot);
-            OopHandle valueOopHandle = null;
-            if (compressedOopsEnabled) {
-                valueOopHandle = strOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
-            } else {
-                valueOopHandle = strOopHandle.getOopHandleAt(stringValueArrayField.getOffset());
-            }
-            StringBuilder sb = new StringBuilder();
-            int length = valueOopHandle.getJIntAt(arrayLengthOffset);
-            for (int i = 0; i < length; i++) {
-                long offset = charArrayBaseOffset + i * charSize;
-                sb.append(valueOopHandle.getJCharAt(offset));
-            }
-            tty.print(String.format("%-30s %s",
-                          sb.toString(),
-                          ReflectionUtil.normalizeSignature(type)));
         } else {
-            tty.print(String.format("%-30s %s",
-                          values.oopHandleAt(slot) + " (address)",
-                          ReflectionUtil.normalizeSignature(type)));
+            throw new IllegalArgumentException("Not primitive type: " + valueClass.getName());
         }
+    }
+    
+    private void printStringValue(PrintStream tty, StackValueCollection values, int slot) {
+        OopHandle strOopHandle = values.oopHandleAt(slot);
+        OopHandle valueOopHandle = null;
+        if (compressedOopsEnabled) {
+            valueOopHandle = strOopHandle.getCompOopHandleAt(stringValueArrayField.getOffset());
+        } else {
+            valueOopHandle = strOopHandle.getOopHandleAt(stringValueArrayField.getOffset());
+        }
+        StringBuilder sb = new StringBuilder();
+        int length = valueOopHandle.getJIntAt(arrayLengthOffset);
+        for (int i = 0; i < length; i++) {
+            long offset = charArrayBaseOffset + i * charSize;
+            sb.append(valueOopHandle.getJCharAt(offset));
+        }
+        tty.print(String.format("%-30s %s",
+                      sb.toString(),
+                      String.class.getName()));
+    }
+    
+    private void printComplexValue(PrintStream tty, StackValueCollection values,  String type, 
+            int slot, int index, Class<?> valueClass) {
+        // TODO Print fields instead of address
+        tty.print(String.format("%-30s %s",
+                        values.oopHandleAt(slot) + " (address)",
+                        ReflectionUtil.normalizeSignature(type)));
+    }
+    
+    private void printPrimitiveArrayValue(PrintStream tty, StackValueCollection values,  String type, 
+            int slot, int index, Class<?> valueClass, Class<?> elementClass) {
+        // TODO Print elements instead of address
+        tty.print(String.format("%-30s %s",
+                        values.oopHandleAt(slot) + " (address)",
+                        ReflectionUtil.normalizeSignature(type)));
+    }
+    
+    private void printComplexArrayValue(PrintStream tty, StackValueCollection values,  String type, 
+            int slot, int index, Class<?> valueClass, Class<?> elementClass) {
+        // TODO Print elements instead of address
+        tty.print(String.format("%-30s %s",
+                        values.oopHandleAt(slot) + " (address)",
+                        ReflectionUtil.normalizeSignature(type)));
     }
     
 }
