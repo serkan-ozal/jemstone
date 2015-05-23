@@ -998,7 +998,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                 throw new IllegalStateException(
                         "This plug-in " + "(" + plugin.getId() + ")" + 
                         " is not supported at Java version " + JAVA_SPEC_VERSION + 
-                        " Supported Java versions: " + sb != null ? sb.toString() : "");
+                        " Supported Java versions: " + (sb != null ? sb.toString() : ""));
             }
         }
     }

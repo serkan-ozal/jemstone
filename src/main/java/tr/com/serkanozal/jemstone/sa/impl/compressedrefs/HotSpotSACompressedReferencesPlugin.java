@@ -14,24 +14,21 @@
  * limitations under the License.
  */
 
-package tr.com.serkanozal.jemstone.sa.impl.stacktracer;
-
-import java.util.HashSet;
-import java.util.Set;
+package tr.com.serkanozal.jemstone.sa.impl.compressedrefs;
 
 import tr.com.serkanozal.jemstone.Jemstone;
-import tr.com.serkanozal.jemstone.sa.HotSpotSAPluginInvalidArgumentException;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentConfig;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResultProcessor;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter.NoHotSpotServiceabilityAgentParameter;
 
-public class HotSpotSAStackTracerPlugin 
+public class HotSpotSACompressedReferencesPlugin 
         implements HotSpotServiceabilityAgentPlugin<
-            HotSpotSAStackTracerParameter,  
-            HotSpotSAStackTracerResult,
-            HotSpotSAStackTracerWorker> {
+            NoHotSpotServiceabilityAgentParameter,  
+            HotSpotSACompressedReferencesResult,
+            HotSpotSACompressedReferencesWorker> {
 
-    public static final String PLUGIN_ID = "HotSpot_Stack_Tracer";
+    public static final String PLUGIN_ID = "HotSpot_Compressed_References_Finder";
     
     private static final JavaVersion[] SUPPORTED_JAVA_VERSION = 
             new JavaVersion[] { 
@@ -39,11 +36,9 @@ public class HotSpotSAStackTracerPlugin
             };
     private static final String USAGE = 
             "Usage: " + Jemstone.class.getName() + " " + 
-                "(-i " + "\"" + PLUGIN_ID + "\"" + " <process_id> [thread_name]*)" + 
+                "(-i " + "\"" + PLUGIN_ID + "\"" + ")" + 
                 " | " + 
-                "(-p " + HotSpotSAStackTracerPlugin.class.getName() + " <process_id> [thread_name]*)" + 
-           "\n" +
-           "\t- empty thread_name(s) means that use all threads";
+                "(-p " + HotSpotSACompressedReferencesPlugin.class.getName() + ")";
     
     private int processId = HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET;
     
@@ -63,25 +58,14 @@ public class HotSpotSAStackTracerPlugin
     }
 
     @Override
-    public HotSpotSAStackTracerWorker getWorker() {
-        return new HotSpotSAStackTracerWorker();
+    public HotSpotSACompressedReferencesWorker getWorker() {
+        return new HotSpotSACompressedReferencesWorker();
     }
 
     @Override
-    public HotSpotSAStackTracerParameter getParamater(String[] args) {
-        if (args == null || args.length == 0) {
-            throw new HotSpotSAPluginInvalidArgumentException(
-                    PLUGIN_ID, "Process id is required");
-        }
-        processId = Integer.parseInt(args[0]);
-        Set<String> threadNames = null;
-        if (args.length > 1) {
-            threadNames = new HashSet<String>();
-            for (int i = 1; i < args.length; i++) {
-                threadNames.add(args[i]);
-            }
-        }
-        return new HotSpotSAStackTracerParameter(threadNames);
+    public NoHotSpotServiceabilityAgentParameter getParamater(String[] args) {
+        // No need to parameter
+        return null;
     }
 
     @Override
@@ -99,7 +83,7 @@ public class HotSpotSAStackTracerPlugin
     }
     
     @Override
-    public HotSpotServiceabilityAgentResultProcessor<HotSpotSAStackTracerResult> getResultProcessor() {
+    public HotSpotServiceabilityAgentResultProcessor<HotSpotSACompressedReferencesResult> getResultProcessor() {
         // Use default result processor (print to console)
         return null;
     }
