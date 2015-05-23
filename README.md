@@ -1,4 +1,4 @@
-# jemstone
+# Jemstone
 Hidden Gems of JVM/JDK
 
 **P.S:** On UNIX and MaxOSX, it may require running the application with `sudo` for necessary user privileges. 
