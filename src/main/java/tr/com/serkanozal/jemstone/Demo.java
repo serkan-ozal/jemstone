@@ -16,9 +16,6 @@
 
 package tr.com.serkanozal.jemstone;
 
-import java.util.Arrays;
-import java.util.HashSet;
-
 import sun.jvm.hotspot.gc_interface.CollectedHeap;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
@@ -26,6 +23,11 @@ import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter.NoHotSp
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.HotSpotSAKeyValueResult;
 
+/**
+ * Demo application for Jemstone framework usage.
+ * 
+ * @author Serkan Ozal
+ */
 public class Demo {
 
     private static final HotSpotServiceabilityAgentManager hotSpotSAManager = 
@@ -44,7 +46,7 @@ public class Demo {
 
         // ///////////////////////////////////////////////////////////////////////////////
 
-        System.out.println(hotSpotSAManager.executeOnHotSpotSA(HeapSummaryWorker.class));
+        System.out.println(hotSpotSAManager.executeOnHotSpotSA(new HeapSummaryWorker()));
         
         // ///////////////////////////////////////////////////////////////////////////////
     }
@@ -67,15 +69,14 @@ public class Demo {
         Foo foo = new Foo();
         int[] intArray = {10, 20, 30};
         Object[] objArray = {
-                new Foo(true, 1000, 2000.0, "foo.s1", new Bar()),
-                "String in object array"
+                new Foo(true, 1000, 2000.0, "foo.sss", new Bar()),
+                "I am a string in object array"
             };
         
-        System.out.println(hotSpotSAManager.getStackTraces(
-                new HashSet<String>(Arrays.asList(Thread.currentThread().getName()))));
+        System.out.println(hotSpotSAManager.getStackTracesOfCurrentThread());
     }
     
-    public static class Foo {
+    static class Foo {
         
         boolean b = true;
         int i = 100;
@@ -87,8 +88,7 @@ public class Demo {
             
         }
 
-        public Foo(boolean b, int i, double d, String s, Bar bar) {
-            super();
+        Foo(boolean b, int i, double d, String s, Bar bar) {
             this.b = b;
             this.i = i;
             this.d = d;
@@ -98,13 +98,12 @@ public class Demo {
         
     }
     
-    public static class Bar {
+    static class Bar {
         
     }
 
     @SuppressWarnings("serial")
-    // Can be executed via "HotSpotServiceabilityAgent.executeOnHotSpotSA(HeapSummaryWorker.class);"
-    public static class HeapSummaryWorker
+    static class HeapSummaryWorker
             implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HotSpotSAKeyValueResult> {
 
         @Override

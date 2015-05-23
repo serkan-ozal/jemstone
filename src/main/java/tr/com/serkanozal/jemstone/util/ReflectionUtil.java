@@ -38,6 +38,25 @@ public class ReflectionUtil {
     private ReflectionUtil() {
 
     }
+    
+    @SuppressWarnings("unchecked")
+    public static <T> T getInstance(String className) {
+        try {
+            return (T) getInstance(Class.forName(className));
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    public static <T> T getInstance(Class<T> clazz) {
+        try {
+            return clazz.newInstance();
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static Field getField(Class<?> cls, String fieldName) {
         while (cls != null && cls.equals(Object.class) == false) {

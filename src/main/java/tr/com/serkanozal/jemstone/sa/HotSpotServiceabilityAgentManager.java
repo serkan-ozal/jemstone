@@ -16,8 +16,6 @@
 
 package tr.com.serkanozal.jemstone.sa;
 
-import java.util.Set;
-
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
 import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerResult;
@@ -53,7 +51,7 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass);
+    R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass);
     
     /**
      * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
@@ -64,7 +62,7 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param);
+    R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param);
     
     /**
      * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
@@ -74,7 +72,7 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker);
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker);
     
     /**
      * Executes given {@link HotSpotServiceabilityAgentWorker} on HotSpot agent
@@ -85,7 +83,7 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param);
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param);
     
     /**
      * Executes given typed {@link HotSpotServiceabilityAgentWorker} on HotSpot
@@ -100,7 +98,7 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
+    R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
                 int timeoutInMsecs, int pipelineSizeInBytes, int processId);
     
     /**
@@ -117,7 +115,7 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
+    R executeOnHotspotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, 
                 P param, int timeoutInMsecs, int pipelineSizeInBytes, int processId);
 
     /**
@@ -133,7 +131,7 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  
                 int timeoutInMsecs, int pipelineSizeInBytes, int processId);
     
     /**
@@ -150,8 +148,103 @@ public interface HotSpotServiceabilityAgentManager {
      * @return the {@link HotSpotServiceabilityAgentResult} instance as result of worker execution
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-        R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
+    R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
                 int timeoutInMsecs, int pipelineSizeInBytes, int processId);
+    
+    /**
+     * Get the requested {@link HotSpotServiceabilityAgentPlugin} with the specified <code>id</code>.
+     * 
+     * @return the requested {@link HotSpotServiceabilityAgentPlugin} has the specified <code>id</code>
+     */
+    @SuppressWarnings("rawtypes")
+    <P extends HotSpotServiceabilityAgentPlugin>
+    P getPlugin(String id);
+    
+    /**
+     * Registers the specified {@link HotSpotServiceabilityAgentPlugin}.
+     * 
+     * @param plugin the {@link HotSpotServiceabilityAgentPlugin} instance to be registered
+     */
+    @SuppressWarnings("rawtypes")
+    <P extends HotSpotServiceabilityAgentPlugin>
+    void registerPlugin(P plugin);
+    
+    /**
+     * Deregisters the existing {@link HotSpotServiceabilityAgentPlugin} 
+     * specified with the <code>id</code>.
+     * 
+     * @param id the id of {@link HotSpotServiceabilityAgentPlugin} to be deregistered
+     */
+    void deregisterPlugin(String id);
+    
+    /**
+     * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code>.
+     * 
+     * @param id the id of {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id);
+    
+    /**
+     * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code> 
+     * with given {@link HotSpotServiceabilityAgentParameter}.
+     * 
+     * @param id    the id of {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @param param the {@link HotSpotServiceabilityAgentParameter} instance to be used as parameter 
+     *              by the plugin
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, P param);
+    
+    /**
+     * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code>
+     * with given <code>args</code>.
+     * 
+     * @param id    the id of {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @param args  the arguments these are used as parameter by plugin
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, String[] args);
+    
+    /**
+     * Runs the given {@link HotSpotServiceabilityAgentPlugin}.
+     * 
+     * @param plugin the {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <P extends HotSpotServiceabilityAgentParameter, 
+     R extends HotSpotServiceabilityAgentResult,
+     W extends HotSpotServiceabilityAgentWorker<P, R>>
+    R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin);
+    
+    /**
+     * Runs the given {@link HotSpotServiceabilityAgentPlugin} with specified 
+     * {@link HotSpotServiceabilityAgentParameter}.
+     * 
+     * @param plugin the {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @param param  the {@link HotSpotServiceabilityAgentParameter} instance to be used as parameter 
+     *               by the plugin
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <P extends HotSpotServiceabilityAgentParameter, 
+     R extends HotSpotServiceabilityAgentResult,
+     W extends HotSpotServiceabilityAgentWorker<P, R>>
+    R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param);
+    
+    /**
+     * Runs the given {@link HotSpotServiceabilityAgentPlugin} with given <code>args</code>.
+     * 
+     * @param plugin the {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @param args   the arguments these are used as parameter by plugin
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <P extends HotSpotServiceabilityAgentParameter, 
+     R extends HotSpotServiceabilityAgentResult,
+     W extends HotSpotServiceabilityAgentWorker<P, R>> 
+    R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, String[] args);
     
     /**
      * Gets the compressed references information as
@@ -163,25 +256,33 @@ public interface HotSpotServiceabilityAgentManager {
     HotSpotSACompressedReferencesResult getCompressedReferences();
     
     /**
-     * Gets detailed stack trace informations of given threads.
+     * Gets detailed stack trace informations of current thread.
      * 
-     * @param threadNames the names of the threads whose stack trace 
-     *                    information will be retrieved
      * @return the detailed stack trace informations
      *         {@link HotSpotSAStackTracerResult} instance
      */
-    HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames);
+    HotSpotSAStackTracerResult getStackTracesOfCurrentThread();
     
     /**
      * Gets detailed stack trace informations of given threads.
      * 
      * @param threadNames the names of the threads whose stack trace 
-     *                    information will be retrieved
-     * @param processId   id of target process to attach and run on it                      
+     *                    information will be retrieved. Empty value means all threads.
      * @return the detailed stack trace informations
      *         {@link HotSpotSAStackTracerResult} instance
      */
-    HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames, int processId);
+    HotSpotSAStackTracerResult getStackTraces(String ... threadNames);
+    
+    /**
+     * Gets detailed stack trace informations of given threads.
+     * 
+     * @param processId   id of target process to attach and run on it      
+     * @param threadNames the names of the threads whose stack trace 
+     *                    information will be retrieved. Empty value means all threads.      
+     * @return the detailed stack trace informations
+     *         {@link HotSpotSAStackTracerResult} instance
+     */
+    HotSpotSAStackTracerResult getStackTraces(int processId, String ... threadNames);
     
     /**
      * Gives details about HotSpot Serviceability Agent support.

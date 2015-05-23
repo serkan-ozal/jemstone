@@ -33,21 +33,24 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.BufferOverflowException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import sun.jvm.hotspot.HotSpotAgent;
 import sun.jvm.hotspot.runtime.VM;
 import sun.management.VMManagement;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentConfig;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
@@ -91,12 +94,15 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private static final String SKIP_JDK_HOME_LOOKUP_FLAG = "jemstone.skipJdkHomeLookup";
     private static final String SKIP_ALL_JAR_LOOKUP_FLAG = "jemstone.skipAllJarLookup";
     private static final String PIPELINE_SIZE_PARAMETER = "jemstone.pipelineSize";
+    private static final String MAX_PIPELINE_SIZE_PARAMETER = "jemstone.maxPipelineSize";
+    private static final String DISABLE_EXPANDING_PIPELINE_PARAMETER = "jemstone.disableExpandingPipeline";
     private static final String TIMEOUT_PARAMETER = "jemstone.timeout";
     private static final String TRY_WITH_SUDO_FLAG = "jemstone.tryWithSudo";
 
     private static final int DEFAULT_TIMEOUT_IN_MSECS = 5000; // 5 seconds
     private static final int VM_CHECK_PERIOD_SENSITIVITY_IN_MSECS = 1000; // 1 seconds
     private static final int DEFAULT_PIPELINE_SIZE_IN_BYTES = 16 * 1024; // 16 KB
+    private static final int DEFAULT_MAX_PIPELINE_SIZE_IN_BYTES = 256 * 1024 * 1024; // 256 MB
     private static final int PROCESS_ATTACH_FAILED_EXIT_CODE = 128;
     
     private static final boolean enable;
@@ -104,6 +110,8 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private static final String classpathForAgent;
     private static final int timeout;
     private static final int pipelineSize;
+    private static final int maxPipelineSize;
+    private static final boolean disableExpandingPipeline;
     private static final boolean sudoRequired;
     private static final Map<String, String> additionalVmArguments = new HashMap<String, String>();
     private static final String errorMessage;
@@ -120,7 +128,10 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         timeout = Integer.getInteger(TIMEOUT_PARAMETER, DEFAULT_TIMEOUT_IN_MSECS);
         pipelineSize = Integer.getInteger(PIPELINE_SIZE_PARAMETER, 
                                           DEFAULT_PIPELINE_SIZE_IN_BYTES);
-
+        maxPipelineSize = Integer.getInteger(MAX_PIPELINE_SIZE_PARAMETER, 
+                                             DEFAULT_MAX_PIPELINE_SIZE_IN_BYTES);
+        disableExpandingPipeline = Boolean.getBoolean(DISABLE_EXPANDING_PIPELINE_PARAMETER);
+        
         if (!skipInit) {
             if (Boolean.getBoolean(SKIP_HOTSPOT_SA_ATTACH_FLAG)) {
                 active = false;
@@ -272,6 +283,10 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     }
     
     private static final HotSpotServiceabilityAgentManager INSTANCE = new HotSpotServiceabilityAgentManagerImpl();
+    
+    @SuppressWarnings("rawtypes")
+    private final Map<String, HotSpotServiceabilityAgentPlugin> pluginMap = 
+            new ConcurrentHashMap<String, HotSpotServiceabilityAgentPlugin>();
 
     private HotSpotServiceabilityAgentManagerImpl() {
 
@@ -427,11 +442,34 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         return executeOnHotSpotSAInternal(processId, classpathForAgent, sudoRequired, worker, param, 
                                           timeoutInMsecs, pipelineSizeInBytes);
     }
+    
+    private static 
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R executeOnHotSpotSAInternal(int procId, String classpath, boolean sudoRequired,
+            HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
+            int timeoutInMsecs, int pipelineSizeInBytes) {
+        try {
+            return doExecuteOnHotSpotSAInternal(procId, classpath, sudoRequired, worker, param, 
+                                                timeoutInMsecs, pipelineSizeInBytes);
+        } catch (Throwable t) {
+            Throwable cause = t.getCause();
+            if (t instanceof BufferOverflowException || cause instanceof BufferOverflowException) {
+                if (!disableExpandingPipeline) {
+                    int nextPipelineSizeInBytes = 2 * pipelineSizeInBytes;
+                    if (nextPipelineSizeInBytes <= maxPipelineSize) {
+                        return executeOnHotSpotSAInternal(procId, classpath, sudoRequired, worker, param, 
+                                                          timeoutInMsecs, nextPipelineSizeInBytes);
+                    }
+                }
+            }
+            throw t;
+        }
+    }
 
     @SuppressWarnings({ "unchecked", "resource" })
     private static 
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-    R executeOnHotSpotSAInternal(int procId, String classpath, boolean sudoRequired,
+    R doExecuteOnHotSpotSAInternal(int procId, String classpath, boolean sudoRequired,
             HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
             int timeoutInMsecs, int pipelineSizeInBytes) {
         // Generate required arguments to create an external Java process
@@ -523,7 +561,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
             if (response != null) {
                 if (response.getError() != null) {
                     Throwable error = response.getError();
-                    throw new RuntimeException(error.getMessage(), error);
+                    throw error;
                 } else {
                     int pipelineDataSize = response.getPipelineDataSize();
                     if (pipelineDataSize == HotSpotServiceabilityAgentResponse.PIPELINE_DATA_NOT_USED) {
@@ -547,6 +585,8 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                 return null;
             }
         } catch (ProcessAttachFailedException e) {
+            throw e;
+        } catch (RuntimeException e) {
             throw e;
         } catch (Throwable t) {
             throw new RuntimeException(t.getMessage(), t);
@@ -797,11 +837,17 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean isEnable() {
         return enable;
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
@@ -810,6 +856,9 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                                   null, timeout, pipelineSize, currentProcessId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
@@ -818,18 +867,27 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                                   param, timeout, pipelineSize, currentProcessId);
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker) {
         return executeOnHotSpotSAInternal(worker, null, timeout, pipelineSize, currentProcessId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param) {
         return executeOnHotSpotSAInternal(worker, param, timeout, pipelineSize, currentProcessId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
@@ -839,6 +897,9 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                                   null, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
@@ -848,6 +909,9 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                                   param, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker,  
@@ -855,27 +919,169 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         return executeOnHotSpotSAInternal(worker, null, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param, 
             int timeoutInMsecs, int pipelineSizeInBytes, int processId) {
         return executeOnHotSpotSAInternal(worker, param, timeoutInMsecs, pipelineSizeInBytes, processId);
     }
+    
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Override
+    public <P extends HotSpotServiceabilityAgentPlugin>
+    P getPlugin(String id) {
+        return (P) pluginMap.get(id);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings("rawtypes")
+    @Override
+    public <P extends HotSpotServiceabilityAgentPlugin>
+    void registerPlugin(P plugin) {
+        pluginMap.put(plugin.getId(), plugin);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void deregisterPlugin(String id) {
+        pluginMap.remove(id);
+    }
+    
+    private <P extends HotSpotServiceabilityAgentParameter, 
+             R extends HotSpotServiceabilityAgentResult,
+             W extends HotSpotServiceabilityAgentWorker<P, R>> 
+    R runPluginInternal(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param) {
+        HotSpotServiceabilityAgentConfig config = plugin.getConfig();
+        if (config != null) {
+            return executeOnHotSpotSA(plugin.getWorker(), 
+                                      param,
+                                      config.getTimeoutInMsecs() != HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET ?
+                                              config.getTimeoutInMsecs() : timeout,
+                                      config.getPipelineSizeInBytes() != HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET ?
+                                              config.getPipelineSizeInBytes() : pipelineSize,
+                                      config.getProcessId() != HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET ?
+                                              config.getProcessId() : currentProcessId);
+        } else {
+            return executeOnHotSpotSA(plugin.getWorker(), param);
+        }
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Override
+    public <R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id) {
+        HotSpotServiceabilityAgentPlugin plugin = pluginMap.get(id);
+        if (plugin != null) {
+            return (R) runPluginInternal(plugin, null);
+        } else {
+            throw new IllegalArgumentException("No plugin found with id " + id);
+        }
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Override
+    public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, P param) {
+        HotSpotServiceabilityAgentPlugin plugin = pluginMap.get(id);
+        if (plugin != null) {
+            return (R) runPluginInternal(plugin, param);
+        } else {
+            throw new IllegalArgumentException("No plugin found with id " + id);
+        }
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @Override
+    public <R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, String[] args) {
+        HotSpotServiceabilityAgentPlugin plugin = pluginMap.get(id);
+        if (plugin != null) {
+            return (R) runPluginInternal(plugin, plugin.getParamater(args));
+        } else {
+            throw new IllegalArgumentException("No plugin found with id " + id);
+        }
+    }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <P extends HotSpotServiceabilityAgentParameter, 
+            R extends HotSpotServiceabilityAgentResult,
+            W extends HotSpotServiceabilityAgentWorker<P, R>>
+    R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin) {
+        return runPluginInternal(plugin, null);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <P extends HotSpotServiceabilityAgentParameter, 
+            R extends HotSpotServiceabilityAgentResult,
+            W extends HotSpotServiceabilityAgentWorker<P, R>>
+    R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param) {
+        return runPluginInternal(plugin, param);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public <P extends HotSpotServiceabilityAgentParameter, 
+            R extends HotSpotServiceabilityAgentResult,
+            W extends HotSpotServiceabilityAgentWorker<P, R>> 
+    R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, String[] args) {
+        return runPluginInternal(plugin, plugin.getParamater(args));
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public HotSpotSACompressedReferencesResult getCompressedReferences() {
         return executeOnHotSpotSA(HotSpotSACompressedReferencesWorker.class, 
                                   HotSpotServiceabilityAgentParameter.VOID);
     }
-
+    
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames) {
+    public HotSpotSAStackTracerResult getStackTracesOfCurrentThread() {
+        return getStackTraces(Thread.currentThread().getName());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public HotSpotSAStackTracerResult getStackTraces(String ... threadNames) {
         return executeOnHotSpotSA(HotSpotSAStackTracerWorker.class,
                                   new HotSpotSAStackTracerParameter(threadNames));
     }
     
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public HotSpotSAStackTracerResult getStackTraces(Set<String> threadNames, int processId) {
+    public HotSpotSAStackTracerResult getStackTraces(int processId, String ... threadNames) {
         return executeOnHotspotSA(HotSpotSAStackTracerWorker.class, 
                                   new HotSpotSAStackTracerParameter(threadNames), 
                                   timeout, pipelineSize, processId);

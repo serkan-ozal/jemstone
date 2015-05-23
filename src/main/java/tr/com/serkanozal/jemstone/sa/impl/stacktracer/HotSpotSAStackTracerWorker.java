@@ -164,7 +164,8 @@ public class HotSpotSAStackTracerWorker
         Set<String> threadNames = param != null ? param.getThreadNames() : null;
         Threads threads = context.getVM().getThreads();
         for (JavaThread cur = threads.first(); cur != null; cur = cur.next()) {
-            if (cur.isJavaThread() && (threadNames == null || threadNames.contains(cur.getThreadName()))) {
+            if (cur.isJavaThread() && 
+                    (threadNames == null || threadNames.isEmpty() || threadNames.contains(cur.getThreadName()))) {
                 ByteArrayOutputStream os = new ByteArrayOutputStream();
                 PrintStream tty = new PrintStream(os);
                 try {
@@ -530,7 +531,7 @@ public class HotSpotSAStackTracerWorker
                         ReflectionUtil.normalizeSignature(type)));
         
         tty.println("\t\telements:");
-        tty.println("\t\t    ==============================================================================");
+        tty.println("\t\t==============================================================================");
         int length = arrayOopHandle.getJIntAt(arrayLengthOffset);
         if (elementClass.equals(byte.class)) {
             for (int i = 0; i < length; i++) {
@@ -590,7 +591,7 @@ public class HotSpotSAStackTracerWorker
                         ReflectionUtil.normalizeSignature(type)));
         
         tty.println("\t\telements:");
-        tty.println("\t\t    ==============================================================================");
+        tty.println("\t\t==============================================================================");
         int length = arrayOopHandle.getJIntAt(arrayLengthOffset);
         for (int i = 0; i < length; i++) {
             long offset = objectArrayBaseOffset + i * oopSize;

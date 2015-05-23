@@ -16,6 +16,7 @@
 
 package tr.com.serkanozal.jemstone.sa.impl.stacktracer;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter;
@@ -32,6 +33,17 @@ public class HotSpotSAStackTracerParameter implements HotSpotServiceabilityAgent
     
     public HotSpotSAStackTracerParameter(Set<String> threadNames) {
         this.threadNames = threadNames;
+    }
+    
+    public HotSpotSAStackTracerParameter(String ... threadNames) {
+        if (threadNames == null || threadNames.length == 0) {
+            this.threadNames = null;
+        } else {
+            this.threadNames = new HashSet<String>(threadNames.length);
+            for (String threadName : threadNames) {
+                this.threadNames.add(threadName);
+            }
+        }
     }
     
     public Set<String> getThreadNames() {
