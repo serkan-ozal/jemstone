@@ -34,10 +34,20 @@ public interface HotSpotServiceabilityAgentPlugin
     
     enum JavaVersion {
         
-        JAVA_6,
-        JAVA_7,
-        JAVA_8,
-        ALL_VERSIONS;
+        JAVA_6(0x01),
+        JAVA_7(0x02),
+        JAVA_8(0x04),
+        ALL_VERSIONS(0x01 | 0x02 | 0x04);
+        
+        int code;
+        
+        JavaVersion(int code) {
+            this.code = code;
+        }
+        
+        public int getCode() {
+            return code;
+        }
         
     }
     
@@ -58,7 +68,8 @@ public interface HotSpotServiceabilityAgentPlugin
     /**
      * Gets the supported Java versions to be run.
      * 
-     * @return the supported Java versions
+     * @return the supported Java versions. 
+     *         <code>null</code> and empty array also means {@link JavaVersion#ALL_VERSIONS}.
      * @see JavaVersion
      */
     JavaVersion[] getSupportedJavaVersions();

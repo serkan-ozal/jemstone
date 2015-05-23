@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import tr.com.serkanozal.jemstone.Jemstone;
+import tr.com.serkanozal.jemstone.sa.HotSpotSAPluginInvalidArgumentException;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentConfig;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin;
 
@@ -30,10 +31,20 @@ public class HotSpotSAStackTracerPlugin
             HotSpotSAStackTracerWorker> {
 
     public static final String PLUGIN_ID = "HotSpot Stack Tracer";
+    
     private static final JavaVersion[] SUPPORTED_JAVA_VERSION = 
             new JavaVersion[] { 
                 JavaVersion.ALL_VERSIONS 
             };
+    private static final String USAGE = 
+            "Usage: " + Jemstone.class.getName() + " " + 
+                "(-i " + "\"" + PLUGIN_ID + "\"" + " <process_id> [thread_name]*)" + 
+                " | " + 
+                "(-p " + HotSpotSAStackTracerPlugin.class.getName() + " <process_id> [thread_name]*)" + 
+           "\n" +
+           "\t- empty thread_name(s) means that use all threads";
+    
+    private int processId = HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET;
     
     @Override
     public String getId() {
@@ -42,12 +53,7 @@ public class HotSpotSAStackTracerPlugin
     
     @Override
     public String getUsage() {
-        return "Usage: " + Jemstone.class.getName() + " " + 
-                    "(-i " + PLUGIN_ID + " [thread_name]*)" + 
-                    " | " + 
-                    "(-p " + getClass().getName() + " [thread_name]*)" + 
-               "\n" +
-               "- empty thread_name(s) means that use all threads";
+        return USAGE;
     }
 
     @Override
@@ -62,11 +68,16 @@ public class HotSpotSAStackTracerPlugin
 
     @Override
     public HotSpotSAStackTracerParameter getParamater(String[] args) {
+        if (args == null || args.length == 0) {
+            throw new HotSpotSAPluginInvalidArgumentException(
+                    PLUGIN_ID, "Process id is required");
+        }
+        processId = Integer.parseInt(args[0]);
         Set<String> threadNames = null;
-        if (args != null && args.length > 0) {
+        if (args.length > 1) {
             threadNames = new HashSet<String>();
-            for (String arg : args) {
-                threadNames.add(arg);
+            for (int i = 1; i < args.length; i++) {
+                threadNames.add(args[i]);
             }
         }
         return new HotSpotSAStackTracerParameter(threadNames);
@@ -74,8 +85,16 @@ public class HotSpotSAStackTracerPlugin
 
     @Override
     public HotSpotServiceabilityAgentConfig getConfig() {
-        // Use default configuration, so just returns "null"
-        return null;
+        if (processId != HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET) {
+            HotSpotServiceabilityAgentConfig config = new HotSpotServiceabilityAgentConfig();
+            // Only set "process id" and don't touch others ("pipeline size", "timeout").
+            // So default configurations will be used for them ("pipeline size", "timeout").
+            config.setProcessId(processId);
+            return config;
+        } else {
+            // Use default configuration, so just returns "null"
+            return null;
+        }
     }
 
 }

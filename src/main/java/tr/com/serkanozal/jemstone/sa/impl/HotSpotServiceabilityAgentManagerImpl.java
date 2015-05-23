@@ -51,6 +51,7 @@ import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin.JavaVersion;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
@@ -88,22 +89,28 @@ import tr.com.serkanozal.jemstone.util.ClasspathUtil;
 @SuppressWarnings("restriction")
 public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabilityAgentManager {
 
-    private static final String SKIP_HOTSPOT_SA_INIT_FLAG = "jemstone.skipHotspotSAInit";
-    private static final String SKIP_HOTSPOT_SA_ATTACH_FLAG = "jemstone.skipHotspotSAAttach";
-    private static final String SKIP_CLASSPATH_LOOKUP_FLAG = "jemstone.skipClasspathLookup";
-    private static final String SKIP_JDK_HOME_LOOKUP_FLAG = "jemstone.skipJdkHomeLookup";
-    private static final String SKIP_ALL_JAR_LOOKUP_FLAG = "jemstone.skipAllJarLookup";
-    private static final String PIPELINE_SIZE_PARAMETER = "jemstone.pipelineSize";
-    private static final String MAX_PIPELINE_SIZE_PARAMETER = "jemstone.maxPipelineSize";
-    private static final String DISABLE_EXPANDING_PIPELINE_PARAMETER = "jemstone.disableExpandingPipeline";
-    private static final String TIMEOUT_PARAMETER = "jemstone.timeout";
-    private static final String TRY_WITH_SUDO_FLAG = "jemstone.tryWithSudo";
+    private static final String SKIP_HOTSPOT_SA_INIT_FLAG = "jemstone.hotspotsa.skipHotspotSAInit";
+    private static final String SKIP_HOTSPOT_SA_ATTACH_FLAG = "jemstone.hotspotsa.skipHotspotSAAttach";
+    private static final String SKIP_CLASSPATH_LOOKUP_FLAG = "jemstone.hotspotsa.skipClasspathLookup";
+    private static final String SKIP_JDK_HOME_LOOKUP_FLAG = "jemstone.hotspotsa.skipJdkHomeLookup";
+    private static final String SKIP_ALL_JAR_LOOKUP_FLAG = "jemstone.hotspotsa.skipAllJarLookup";
+    private static final String PIPELINE_SIZE_PARAMETER = "jemstone.hotspotsa.pipelineSize";
+    private static final String MAX_PIPELINE_SIZE_PARAMETER = "jemstone.hotspotsa.maxPipelineSize";
+    private static final String DISABLE_EXPANDING_PIPELINE_PARAMETER = "jemstone.hotspotsa.disableExpandingPipeline";
+    private static final String TIMEOUT_PARAMETER = "jemstone.hotspotsa.timeout";
+    private static final String TRY_WITH_SUDO_FLAG = "jemstone.hotspotsa.tryWithSudo";
 
     private static final int DEFAULT_TIMEOUT_IN_MSECS = 5000; // 5 seconds
     private static final int VM_CHECK_PERIOD_SENSITIVITY_IN_MSECS = 1000; // 1 seconds
     private static final int DEFAULT_PIPELINE_SIZE_IN_BYTES = 16 * 1024; // 16 KB
     private static final int DEFAULT_MAX_PIPELINE_SIZE_IN_BYTES = 256 * 1024 * 1024; // 256 MB
     private static final int PROCESS_ATTACH_FAILED_EXIT_CODE = 128;
+    
+    private static final String JAVA_6 = "1.6";
+    private static final String JAVA_7 = "1.7";
+    private static final String JAVA_8 = "1.8";
+    
+    private static final String JAVA_SPEC_VERSION = System.getProperty("java.specification.version");
     
     private static final boolean enable;
     private static final int currentProcessId;
@@ -954,10 +961,54 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         pluginMap.remove(id);
     }
     
+    @SuppressWarnings("rawtypes")
+    private void checkPluginAndJavaVersionCompatibility(HotSpotServiceabilityAgentPlugin plugin) {
+        JavaVersion[] supportedJavaVersions = plugin.getSupportedJavaVersions();
+        if (supportedJavaVersions != null && supportedJavaVersions.length > 0) {
+            int supportedJavaVersionCode = 0;
+            for (JavaVersion supportedJavaVersion : supportedJavaVersions) {
+                supportedJavaVersionCode |= supportedJavaVersion.getCode();
+            }
+            boolean versionMismatch = false;
+            if (JAVA_6.equals(JAVA_SPEC_VERSION)) {
+                if ((supportedJavaVersionCode & JavaVersion.JAVA_6.getCode()) == 0) {
+                    versionMismatch = true;
+                }
+            } else if (JAVA_7.equals(JAVA_SPEC_VERSION)) {
+                if ((supportedJavaVersionCode & JavaVersion.JAVA_7.getCode()) == 0) {
+                    versionMismatch = true;
+                }
+            } else if (JAVA_8.equals(JAVA_SPEC_VERSION)) {
+                if ((supportedJavaVersionCode & JavaVersion.JAVA_8.getCode()) == 0) {
+                    versionMismatch = true;
+                }
+            } else {
+                throw new IllegalStateException("Unsupported Java version: " + JAVA_SPEC_VERSION);
+            }
+            if (versionMismatch) {
+                StringBuilder sb = null;new StringBuilder();
+                for (JavaVersion supportedJavaVersion : supportedJavaVersions) {
+                    if (sb == null) {
+                        sb = new StringBuilder(supportedJavaVersion.name());
+                    } else {
+                        sb.append(", ");
+                        sb.append(supportedJavaVersion.name());
+                    }
+                }
+                throw new IllegalStateException(
+                        "This plug-in " + "(" + plugin.getId() + ")" + 
+                        " is not supported at Java version " + JAVA_SPEC_VERSION + 
+                        " Supported Java versions: " + sb != null ? sb.toString() : "");
+            }
+        }
+    }
+    
     private <P extends HotSpotServiceabilityAgentParameter, 
              R extends HotSpotServiceabilityAgentResult,
              W extends HotSpotServiceabilityAgentWorker<P, R>> 
     R runPluginInternal(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param) {
+        checkPluginAndJavaVersionCompatibility(plugin);
+        
         HotSpotServiceabilityAgentConfig config = plugin.getConfig();
         if (config != null) {
             return executeOnHotSpotSA(plugin.getWorker(), 

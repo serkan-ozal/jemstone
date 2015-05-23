@@ -132,7 +132,7 @@ public final class Jemstone {
         exception.printStackTrace();
         if (plugin != null) {
             System.err.println("Invalid usage of plugin " + plugin.getId());
-            System.out.println(plugin.getUsage());
+            System.err.println(plugin.getUsage());
         }
     }
     
