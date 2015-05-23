@@ -23,6 +23,8 @@ import tr.com.serkanozal.jemstone.sa.HotSpotSAPluginInvalidArgumentException;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResult;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResultProcessor;
+import tr.com.serkanozal.jemstone.sa.impl.DefaultHotSpotSAResultProcessor;
 import tr.com.serkanozal.jemstone.sa.impl.HotSpotServiceabilityAgentManagerImpl;
 import tr.com.serkanozal.jemstone.scanner.JemstoneScanner;
 import tr.com.serkanozal.jemstone.scanner.JemstoneScannerFactory;
@@ -37,6 +39,9 @@ public final class Jemstone {
 
     private static HotSpotServiceabilityAgentManager hotSpotSAManager = 
             HotSpotServiceabilityAgentManagerImpl.getInstance();
+    @SuppressWarnings("rawtypes")
+    private static final HotSpotServiceabilityAgentResultProcessor hotSpotSAResultProcessor = 
+            new DefaultHotSpotSAResultProcessor();
     
     static {
         init();
@@ -92,14 +97,23 @@ public final class Jemstone {
                     invalidUsage();
                 } else {
                     String pluginId = args[1];
+                    HotSpotServiceabilityAgentPlugin plugin = hotSpotSAManager.getPlugin(pluginId);
+                    if (plugin == null) {
+                        throw new IllegalArgumentException("No plugin found with id " + pluginId);
+                    }
                     String[] pluginArgs = new String[args.length - 2]; 
                     System.arraycopy(args, 2, pluginArgs, 0, pluginArgs.length);
                     try {
                         HotSpotServiceabilityAgentResult result = 
                                 hotSpotSAManager.runPlugin(pluginId, pluginArgs);
-                        System.out.println(result);
+                        HotSpotServiceabilityAgentResultProcessor resultProcessor = 
+                                plugin.getResultProcessor();
+                        if (resultProcessor == null) {
+                            resultProcessor = hotSpotSAResultProcessor;
+                        }
+                        hotSpotSAResultProcessor.processResult(result);
                     } catch (HotSpotSAPluginInvalidArgumentException e) {
-                        handlePluginInvalidArgumentException(e, hotSpotSAManager.getPlugin(pluginId));
+                        handlePluginInvalidArgumentException(e, plugin);
                     }
                 }
             } else if ("-p".equals(args[0])) {
@@ -113,7 +127,12 @@ public final class Jemstone {
                     try {
                         HotSpotServiceabilityAgentResult result = 
                                 hotSpotSAManager.runPlugin(plugin, pluginArgs);
-                        System.out.println(result);
+                        HotSpotServiceabilityAgentResultProcessor resultProcessor = 
+                                plugin.getResultProcessor();
+                        if (resultProcessor == null) {
+                            resultProcessor = hotSpotSAResultProcessor;
+                        }
+                        hotSpotSAResultProcessor.processResult(result);
                     } catch (HotSpotSAPluginInvalidArgumentException e) {
                         handlePluginInvalidArgumentException(e,plugin);
                     }    

@@ -23,6 +23,7 @@ import tr.com.serkanozal.jemstone.Jemstone;
 import tr.com.serkanozal.jemstone.sa.HotSpotSAPluginInvalidArgumentException;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentConfig;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResultProcessor;
 
 public class HotSpotSAStackTracerPlugin 
         implements HotSpotServiceabilityAgentPlugin<
@@ -95,6 +96,12 @@ public class HotSpotSAStackTracerPlugin
             // Use default configuration, so just returns "null"
             return null;
         }
+    }
+    
+    @Override
+    public HotSpotServiceabilityAgentResultProcessor<HotSpotSAStackTracerResult> getResultProcessor() {
+        // Use default result processor (print to console)
+        return null;
     }
 
 }

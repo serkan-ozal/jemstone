@@ -101,5 +101,16 @@ public interface HotSpotServiceabilityAgentPlugin
      *         if there is any specific configuration, otherwise <code>null</code>
      */
     HotSpotServiceabilityAgentConfig getConfig();
+    
+    /**
+     * Gets the {@link HotSpotServiceabilityAgentResultProcessor} instance 
+     * to process output of {@link HotSpotServiceabilityAgentWorker} execution.
+     * 
+     * @return the {@link HotSpotServiceabilityAgentResultProcessor} instance 
+     *         if there is any specific result processing requirement, 
+     *         otherwise <code>null</code> to indicate that use default result processor 
+     *         which prints the result to standard output (console).
+     */
+    HotSpotServiceabilityAgentResultProcessor<R> getResultProcessor();
 
 }
