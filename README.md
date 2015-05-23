@@ -73,4 +73,3 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 5. Roadmap
 ==============
 
-* Plug-in support for allowing registering custom Jemstone plugins as explicitly or auto-detected at classpath.
