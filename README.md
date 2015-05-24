@@ -15,8 +15,8 @@ Here is the Jemstone execution logic:
 * **Jemstone** (current/caller process) destroys the connection/pipeline between it and  **HotSpot SA Process** then returns the result (`HotSpotServiceabilityAgentResult`) to the caller (**Jemstone** API user).
 
 For more informations about HotSpot Serviceability Agent, please see the following resources:
-* ![The HotSpot™ Serviceability Agent: An out-of-process high level debugger for a Java™ virtual machine](https://www.usenix.org/legacy/publications/library/proceedings/jvm01/full_papers/russell/russell_html/index.html)
-* ![Serviceability in HotSpot](http://openjdk.java.net/groups/hotspot/docs/Serviceability.html)
+* [The HotSpot™ Serviceability Agent: An out-of-process high level debugger for a Java™ virtual machine](https://www.usenix.org/legacy/publications/library/proceedings/jvm01/full_papers/russell/russell_html/index.html)
+* [Serviceability in HotSpot](http://openjdk.java.net/groups/hotspot/docs/Serviceability.html)
 
 
 
