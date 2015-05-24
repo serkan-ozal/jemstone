@@ -187,6 +187,16 @@ public interface HotSpotServiceabilityAgentManager {
     R runPlugin(String id);
     
     /**
+     * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code>.
+     * 
+     * @param id        the id of {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @param config    the execution configuration
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, HotSpotServiceabilityAgentConfig config);
+
+    /**
      * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code> 
      * with given {@link HotSpotServiceabilityAgentParameter}.
      * 
@@ -197,6 +207,19 @@ public interface HotSpotServiceabilityAgentManager {
      */
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R runPlugin(String id, P param);
+    
+    /**
+     * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code> 
+     * with given {@link HotSpotServiceabilityAgentParameter}.
+     * 
+     * @param id        the id of {@link HotSpotServiceabilityAgentPlugin} to be run
+     * @param param     the {@link HotSpotServiceabilityAgentParameter} instance to be used as parameter 
+     *                  by the plugin
+     * @param config    the execution configuration             
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result of plugin execution
+     */
+    <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, P param, HotSpotServiceabilityAgentConfig config);
     
     /**
      * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code>

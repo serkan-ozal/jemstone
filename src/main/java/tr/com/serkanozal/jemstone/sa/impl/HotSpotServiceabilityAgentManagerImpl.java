@@ -1006,10 +1006,10 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     private <P extends HotSpotServiceabilityAgentParameter, 
              R extends HotSpotServiceabilityAgentResult,
              W extends HotSpotServiceabilityAgentWorker<P, R>> 
-    R runPluginInternal(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param) {
+    R runPluginInternal(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param,
+                        HotSpotServiceabilityAgentConfig config) {
         checkPluginAndJavaVersionCompatibility(plugin);
-        
-        HotSpotServiceabilityAgentConfig config = plugin.getConfig();
+
         if (config != null) {
             return executeOnHotSpotSA(plugin.getWorker(), 
                                       param,
@@ -1022,6 +1022,14 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         } else {
             return executeOnHotSpotSA(plugin.getWorker(), param);
         }
+    }
+    
+    private <P extends HotSpotServiceabilityAgentParameter, 
+             R extends HotSpotServiceabilityAgentResult,
+             W extends HotSpotServiceabilityAgentWorker<P, R>> 
+    R runPluginInternal(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param) {
+        HotSpotServiceabilityAgentConfig config = plugin.getConfig();
+        return runPluginInternal(plugin, param, config);
     }
     
     /**
@@ -1044,11 +1052,41 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
      */
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
+    public <R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, HotSpotServiceabilityAgentConfig config) {
+        HotSpotServiceabilityAgentPlugin plugin = pluginMap.get(id);
+        if (plugin != null) {
+            return (R) runPluginInternal(plugin, null, config);
+        } else {
+            throw new IllegalArgumentException("No plugin found with id " + id);
+        }
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Override
     public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
     R runPlugin(String id, P param) {
         HotSpotServiceabilityAgentPlugin plugin = pluginMap.get(id);
         if (plugin != null) {
             return (R) runPluginInternal(plugin, param);
+        } else {
+            throw new IllegalArgumentException("No plugin found with id " + id);
+        }
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Override
+    public <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
+    R runPlugin(String id, P param, HotSpotServiceabilityAgentConfig config) {
+        HotSpotServiceabilityAgentPlugin plugin = pluginMap.get(id);
+        if (plugin != null) {
+            return (R) runPluginInternal(plugin, param, config);
         } else {
             throw new IllegalArgumentException("No plugin found with id " + id);
         }

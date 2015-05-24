@@ -36,9 +36,9 @@ public class HotSpotSACompressedReferencesPlugin
             };
     private static final String USAGE = 
             "Usage: " + Jemstone.class.getName() + " " + 
-                "(-i " + "\"" + PLUGIN_ID + "\"" + ")" + 
+                "(-i " + "\"" + PLUGIN_ID + "\"" + " <process_id>)" + 
                 " | " + 
-                "(-p " + HotSpotSACompressedReferencesPlugin.class.getName() + ")";
+                "(-p " + HotSpotSACompressedReferencesPlugin.class.getName() + " <process_id>)";
     
     private int processId = HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET;
     
