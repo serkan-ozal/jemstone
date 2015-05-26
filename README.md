@@ -80,8 +80,24 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 4. Usage
 ==============
 
+4.1. Worker Based Implementation
+--------------
 
+4.2. Plug-in Based Implementation
+--------------
+
+4.3. Built-in Implementations
+--------------
+
+4.3.1. Stack Trace Dumper
+--------
+
+4.3.2. Compressed References Finder
+--------
 
 5. Roadmap
 ==============
 
+- Built-in **Heap Dump** support/implementation
+
+- Remote process attaching support
