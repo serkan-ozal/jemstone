@@ -270,13 +270,25 @@ public interface HotSpotServiceabilityAgentManager {
     R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, String[] args);
     
     /**
-     * Gets the compressed references information as
+     * Gets the compressed references information as of current process
      * {@link HotSpotSACompressedReferencesResult} instance.
      * 
      * @return the compressed references information as
      *         {@link HotSpotSACompressedReferencesResult} instance
      */
     HotSpotSACompressedReferencesResult getCompressedReferences();
+    
+    /**
+     * Gets the compressed references information of target process 
+     * specified with <code>processId</code> as
+     * {@link HotSpotSACompressedReferencesResult} instance.
+     * 
+     * @param processId id of target process to attach and 
+     *                  get compressed references information of it  
+     * @return the compressed references information as
+     *         {@link HotSpotSACompressedReferencesResult} instance
+     */
+    HotSpotSACompressedReferencesResult getCompressedReferences(int processId);
     
     /**
      * Gets detailed stack trace informations of current thread.

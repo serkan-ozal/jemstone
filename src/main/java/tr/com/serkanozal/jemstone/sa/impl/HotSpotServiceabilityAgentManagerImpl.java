@@ -1143,10 +1143,22 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("unchecked")
     @Override
     public HotSpotSACompressedReferencesResult getCompressedReferences() {
-        return executeOnHotSpotSA(HotSpotSACompressedReferencesWorker.class, 
+        return executeOnHotSpotSA(createWorkerInstance(HotSpotSACompressedReferencesWorker.class), 
                                   HotSpotServiceabilityAgentParameter.VOID);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings("unchecked")
+    @Override
+    public HotSpotSACompressedReferencesResult getCompressedReferences(int processId) {
+        return executeOnHotSpotSA(createWorkerInstance(HotSpotSACompressedReferencesWorker.class), 
+                                  HotSpotServiceabilityAgentParameter.VOID,
+                                  timeout, pipelineSize, processId);
     }
     
     /**
