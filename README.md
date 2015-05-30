@@ -189,6 +189,8 @@ HotSpotSAStackTracerResult [stackTraces=
 
 As seen from the output, variable types are also resolved and values are interpreted as their types. `String` instances are handled in a specific way and its characters are printed as value. Also complex object are printed as all field names/ types/values of these objects.
 
+And this is a sample internal usage of this feature: https://github.com/serkan-ozal/jemstone/blob/master/src/main/java/tr/com/serkanozal/jemstone/Demo.java#L45
+
 4.3.2. Compressed References Finder
 --------
 
