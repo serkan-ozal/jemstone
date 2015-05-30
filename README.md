@@ -382,6 +382,8 @@ public static class HeapSummaryPlugin
 }
 ```
 
+As you can see, the plugin doesn't require any parameter (see `public NoHotSpotServiceabilityAgentParameter getParamater(String[] args)` method) and uses the `HeapSummaryWorker` as the execution unit (see `public HeapSummaryWorker getWorker()` method). Also, `HeapSummaryPlugin` supports all Java versions (see `public JavaVersion[] getSupportedJavaVersions()` method) and can be used for external JVM process by creating a specific configuration (`HotSpotServiceabilityAgentConfig`) if the `process_id` argument is specified (see `public HotSpotServiceabilityAgentConfig getConfig()` method) as mentioned at its usage.
+
 Here is the usage of this plugin:
 ``` java
 HotSpotSAKeyValueResult result = hotSpotSAManager.runPlugin(HeapSummaryPlugin.PLUGIN_ID);
