@@ -142,7 +142,7 @@ As seen from the signature of `run` method, there is also another parameter type
 
 For more useful you method for `HotSpotServiceabilityAgentWorker` usage, you can see [HotSpotServiceabilityAgentManager](https://github.com/serkan-ozal/jemstone/blob/master/src/main/java/tr/com/serkanozal/jemstone/sa/HotSpotServiceabilityAgentManager.java) definition for more details.
 
-Here is sample usecase for implementing and running your custom `HotSpotServiceabilityAgentWorker` implementation on top of **Jemstone**. In this example, there is a `HotSpotServiceabilityAgentWorker` implementation that calculates limits (start and finish) and capacity of heap of target JVM.
+Here is sample use-case for implementing and running your custom `HotSpotServiceabilityAgentWorker` implementation on top of **Jemstone**. In this example, there is a `HotSpotServiceabilityAgentWorker` implementation that calculates limits (start and finish) and capacity of heap of target JVM.
 
 ``` java
 public class HeapSummaryWorker
@@ -183,6 +183,219 @@ HotSpotSAKeyValueResult [{
 
 4.2. Plug-in Based Implementation
 --------------
+The interface (contract point) of the **Jemstone** to the outside (framework user) is the `HotSpotServiceabilityAgentPlugin`. **Jemstone**'s HotSpot SA engine gets the parameter (`HotSpotServiceabilityAgentParameter`) or arguments (`String[] args`) if required and passes it to the `HotSpotServiceabilityAgentPlugin` implementation to be used as execution input. Then gets the result (`HotSpotServiceabilityAgentResult`) and returns it to caller. 
+
+`HotSpotServiceabilityAgentPlugin` is a logical structure (or wrapper) for `HotSpotServiceabilityAgentWorker` and its parameter (`HotSpotServiceabilityAgentParameter`) and result (`HotSpotServiceabilityAgentResult`). In fact, `HotSpotServiceabilityAgentPlugin` wraps the `HotSpotServiceabilityAgentWorker`, passes the parameter  (`HotSpotServiceabilityAgentParameter`) to it and returns its result (`HotSpotServiceabilityAgentResult`) to caller. `HotSpotServiceabilityAgentPlugin` is also a gateway between command line and `HotSpotServiceabilityAgentWorker` implementation since it converts arguments (`String[] args`) to the parameter (`HotSpotServiceabilityAgentParameter`) to be used by `HotSpotServiceabilityAgentWorker`.
+
+Here is the definition of the `HotSpotServiceabilityAgentPlugin`:
+``` java
+/**
+ * Interface for plugins on top of HotSpot Serviceability Agent support.
+ * {@link HotSpotServiceabilityAgentPlugin} is the structured, packaged 
+ * and well defined way of {@link HotSpotServiceabilityAgentWorker} implementations. 
+ * 
+ * @see HotSpotServiceabilityAgentParameter
+ * @see HotSpotServiceabilityAgentResult
+ * @see HotSpotServiceabilityAgentWorker
+ * 
+ * @author Serkan Ozal
+ */
+public interface HotSpotServiceabilityAgentPlugin
+        <P extends HotSpotServiceabilityAgentParameter, 
+         R extends HotSpotServiceabilityAgentResult,
+         W extends HotSpotServiceabilityAgentWorker<P, R>> {
+    
+    enum JavaVersion {
+        
+        JAVA_6(0x01),
+        JAVA_7(0x02),
+        JAVA_8(0x04),
+        ALL_VERSIONS(0x01 | 0x02 | 0x04);
+        
+        int code;
+        
+        JavaVersion(int code) {
+            this.code = code;
+        }
+        
+        public int getCode() {
+            return code;
+        }
+        
+    }
+    
+    /**
+     * Gets the id of this {@link HotSpotServiceabilityAgentPlugin}. Must be unique.
+     * 
+     * @return the id of this {@link HotSpotServiceabilityAgentPlugin}
+     */
+    String getId();
+    
+    /**
+     * Gets the usage of this {@link HotSpotServiceabilityAgentPlugin}. Must be unique.
+     * 
+     * @return the usage of this {@link HotSpotServiceabilityAgentPlugin}
+     */
+    String getUsage();
+    
+    /**
+     * Gets the supported Java versions to be run.
+     * 
+     * @return the supported Java versions. 
+     *         <code>null</code> and empty array also means {@link JavaVersion#ALL_VERSIONS}.
+     * @see JavaVersion
+     */
+    JavaVersion[] getSupportedJavaVersions();
+    
+    /**
+     * Gets the {@link HotSpotServiceabilityAgentWorker} to be run.
+     * 
+     * @return the {@link HotSpotServiceabilityAgentWorker} to be run
+     */
+    W getWorker();
+    
+    /**
+     * Creates and gets the {@link HotSpotServiceabilityAgentParameter} from arguments.
+     * This method is used for using this {@link HotSpotServiceabilityAgentPlugin} 
+     * from command-line for getting required parameter to run 
+     * {@link HotSpotServiceabilityAgentWorker}.
+     * 
+     * @param args the arguments for creating {@link HotSpotServiceabilityAgentParameter}
+     * @return the created {@link HotSpotServiceabilityAgentParameter} from arguments 
+     *         if there is any specific parameter to run {@link HotSpotServiceabilityAgentWorker},
+     *         otherwise <code>null</code>
+     */
+    P getParamater(String[] args);
+    
+    /**
+     * Gets the configuration of {@link HotSpotServiceabilityAgentWorker} to be run.
+     * 
+     * @return the {@link HotSpotServiceabilityAgentConfig} instance 
+     *         if there is any specific configuration, otherwise <code>null</code>
+     */
+    HotSpotServiceabilityAgentConfig getConfig();
+    
+    /**
+     * Gets the {@link HotSpotServiceabilityAgentResultProcessor} instance 
+     * to process output of {@link HotSpotServiceabilityAgentWorker} execution.
+     * 
+     * @return the {@link HotSpotServiceabilityAgentResultProcessor} instance 
+     *         if there is any specific result processing requirement, 
+     *         otherwise <code>null</code> to indicate that use default result processor 
+     *         which prints the result to standard output (console).
+     */
+    HotSpotServiceabilityAgentResultProcessor<R> getResultProcessor();
+
+}
+```
+
+`HotSpotServiceabilityAgentPlugin` implementations are registred via `void registerPlugin(HotSpotServiceabilityAgentPlugin plugin)` method over `HotSpotServiceabilityAgentManager` explicitly or can be detected and registered automatically at startup by classpath scanning feature of **Jemstone**. At startup, **Jemstone** scans the classpath for sub-types of `HotSpotServiceabilityAgentPlugin` and when it finds an implementer of `HotSpotServiceabilityAgentPlugin` interface, **Jemstone** creates an instance of this class and registers it automatically.
+
+**Common Generic Type Definition:**
+``` java
+<P extends HotSpotServiceabilityAgentParameter, 
+ R extends HotSpotServiceabilityAgentResult,
+ W extends HotSpotServiceabilityAgentWorker<P, R>>
+```
+
+`HotSpotServiceabilityAgentPlugin` implementations can be worked over `HotSpotServiceabilityAgentManager` with the following methods:
+- `R runPlugin(String id)`
+- `R runPlugin(String id, HotSpotServiceabilityAgentConfig config)` 
+- `R runPlugin(String id, P param)`
+- `R runPlugin(String id, P param, HotSpotServiceabilityAgentConfig config)`
+- `R runPlugin(String id, String[] args)`
+- `R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin)`
+- `R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, P param)`
+- `R runPlugin(HotSpotServiceabilityAgentPlugin<P, R, W> plugin, String[] args)`
+
+For more useful you method for `HotSpotServiceabilityAgentPlugin` usage, you can see [HotSpotServiceabilityAgentPlugin](https://github.com/serkan-ozal/jemstone/blob/master/src/main/java/tr/com/serkanozal/jemstone/sa/HotSpotServiceabilityAgentPlugin.java) definition for more details.
+
+Here is sample use-case for implementing and running your custom `HotSpotServiceabilityAgentPlugin` implementation on top of **Jemstone**. In this example, there is a `HotSpotServiceabilityAgentPlugin` implementation uses worker `HeapSummaryWorker`, which mentioned at previous section, to calculate the limits (start and finish) and capacity of heap of target JVM.
+
+``` java
+public static class HeapSummaryPlugin 
+    implements HotSpotServiceabilityAgentPlugin<NoHotSpotServiceabilityAgentParameter, 
+                                                HotSpotSAKeyValueResult, 
+                                                HeapSummaryWorker> {
+
+    public static final String PLUGIN_ID = "HotSpot_Heap_Summarizer";
+    
+    private static final JavaVersion[] SUPPORTED_JAVA_VERSIONS = 
+        new JavaVersion[] { 
+            JavaVersion.ALL_VERSIONS 
+        };
+    
+    private static final String USAGE = 
+        Jemstone.class.getName() + " " + 
+            "(-i " + "\"" + PLUGIN_ID + "\"" + " <process_id>)" + 
+            " | " + 
+            "(-p " + HeapSummaryPlugin.class.getName() + " <process_id>)";
+    
+    private int processId = HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET;
+            
+    @Override
+    public String getId() {
+        return PLUGIN_ID;
+    }
+    
+    @Override
+    public String getUsage() {
+        return USAGE;
+    }
+    
+    @Override
+    public JavaVersion[] getSupportedJavaVersions() {
+        return SUPPORTED_JAVA_VERSIONS;
+    }
+    
+    @Override
+    public HeapSummaryWorker getWorker() {
+        return new HeapSummaryWorker();
+    }
+    
+    @Override
+    public NoHotSpotServiceabilityAgentParameter getParamater(String[] args) {
+        // No need to parameter
+        return null;
+    }
+    
+    @Override
+    public HotSpotServiceabilityAgentConfig getConfig() {
+        if (processId != HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET) {
+            HotSpotServiceabilityAgentConfig config = new HotSpotServiceabilityAgentConfig();
+            // Only set "process id" and don't touch others ("pipeline size", "timeout").
+            // So default configurations will be used for them ("pipeline size", "timeout").
+            config.setProcessId(processId);
+            return config;
+        } else {
+            // Use default configuration, so just returns "null"
+            return null;
+        }
+    }
+    
+    @Override
+    public HotSpotServiceabilityAgentResultProcessor<HotSpotSAKeyValueResult> getResultProcessor() {
+        // Use default result processor (print to console)
+        return null;
+    }
+
+}
+```
+
+Here is the usage of this plugin:
+``` java
+HotSpotSAKeyValueResult result = hotSpotSAManager.runPlugin(HeapSummaryPlugin.PLUGIN_ID);
+System.out.println(result);
+```
+
+and this is the output from my sample run:
+```
+HotSpotSAKeyValueResult [{
+        endAddress=0x789bc0000, 
+        startAddress=0x77c000000, 
+        capacity=230424576
+}]
+```
 
 4.3. Built-in Implementations
 --------------
@@ -302,7 +515,7 @@ All results are returned as `HotSpotSACompressedReferencesResult`. `HotSpotSACom
 The another way of using **Compressed References Finder** feature is using it from command line as plugin. Usage format of **Compressed References Finder** plugin is:
 ```
 tr.com.serkanozal.jemstone.Jemstone 
-	(-i ""HotSpot_Compressed_References_Finder" <process_id>) 
+	(-i "HotSpot_Compressed_References_Finder" <process_id>) 
 	| 
 	(-p tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesPluginn <process_id>) 
 ```
@@ -326,6 +539,28 @@ HotSpotSACompressedReferencesResult [
 ```
 
 And this is a sample internal usage of this feature: https://github.com/serkan-ozal/jemstone/blob/master/src/main/java/tr/com/serkanozal/jemstone/Demo.java#L41
+
+4.4. Command Line Usage
+--------------
+
+**Jemstone** can be used as a standalone application to run the plugins from command line.
+
+Here is the usage:
+```
+tr.com.serkanozal.jemstone.Jemstone
+	(-i <plugin_id> [arg]*) 
+        |
+        (-p <plugin_class_name> [arg]*)
+        |
+        (-l) 
+        | 
+        (-h | -help)
+```
+
+- `-i`: Runs the plugin with its id (`<plugin_id>`). `arg` (can be multiple) is optional and depends on the plugin itself.
+- `-p`: Runs the plugin with its class name (`<plugin_class_name>`). `arg` (can be multiple) is optional and depends on the plugin itself.
+- `-l`: Lists the registered plugins.
+- `-h` or `-help`: Prints the usage of **Jemstone**.
 
 5. Roadmap
 ==============
