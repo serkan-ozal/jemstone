@@ -111,6 +111,84 @@ tr.com.serkanozal.jemstone.Jemstone
 - The `processId` parameter is the id of process to be attached and dumped stack traces of threads on it.
 - The `thread_name` parameter is optional so if it is not specified, all threads are dumped.
 
+Here is sample output of **Stack Trace Dumper** feature:
+```
+HotSpotSAStackTracerResult [stackTraces=
+- Thread Name: main
+    |- tr.com.serkanozal.jemstone.Demo.method2(boolean, int, float, long, double, char, java.lang.String) @bci=100, line=74, pc=0x00000001078797e4 (Interpreted frame)
+	parameters:
+	       name                      value                          type
+	    ==============================================================================
+	    |- b2                        false                          boolean
+	    |- i2                        100                            int
+	    |- f2                        400.000000                     float
+	    |- l2                        900                            long
+	    |- d2                        1600.000000                    double
+	    |- c2                        Y                              char
+	    |- s2                        str-str                        java.lang.String
+	local variables:
+	       name                      value                          type
+	    ==============================================================================
+	    |- localVar_method2          3000                           int
+	    |- foo                       0x000000076afd8328 (address)   tr.com.serkanozal.jemstone.Demo$Foo
+		fields:
+		       name                      value                          type
+		    ==============================================================================
+		    |- b                         true                           boolean
+		    |- i                         100                            int
+		    |- d                         200.000000                     double
+		    |- s                         foo.s                          java.lang.String
+		    |- bar                       0x000000076afdb358 (address)   tr.com.serkanozal.jemstone.Demo$Bar
+
+	    |- intArray                  0x000000076afdb368 (address)   int[]
+		elements:
+		    ==============================================================================
+		    |- [0]: 10
+		    |- [1]: 20
+		    |- [2]: 30
+
+	    |- objArray                  0x000000076afdb388 (address)   java.lang.Object[]
+		elements:
+		    ==============================================================================
+		    |- [0]: 0x000000076afdb3a0 (tr.com.serkanozal.jemstone.Demo$Foo)
+		    |- [1]: String in object array (java.lang.String)
+
+    |- tr.com.serkanozal.jemstone.Demo.method1(boolean, int, float, long, double, char, java.lang.String) @bci=55, line=61, pc=0x000000010787998d (Interpreted frame)
+	parameters:
+	       name                      value                          type
+	    ==============================================================================
+	    |- b1                        true                           boolean
+	    |- i1                        10                             int
+	    |- f1                        20.000000                      float
+	    |- l1                        30                             long
+	    |- d1                        40.000000                      double
+	    |- c1                        X                              char
+	    |- s1                        str                            java.lang.String
+	local variables:
+	       name                      value                          type
+	    ==============================================================================
+	    |- localVar_method1          2000                           int
+    |- tr.com.serkanozal.jemstone.Demo.stackTraceDemo() @bci=19, line=55, pc=0x000000010787998d (Interpreted frame)
+	parameters:
+	       name                      value                          type
+	    ==============================================================================
+	local variables:
+	       name                      value                          type
+	    ==============================================================================
+	    |- localVar_stackTraceDemo   1000                           int
+    |- tr.com.serkanozal.jemstone.Demo.main(java.lang.String[]) @bci=28, line=43, pc=0x000000010787998d (Interpreted frame)
+	parameters:
+	       name                      value                          type
+	    ==============================================================================
+	    |- args                      0x000000076af7a440 (address)   java.lang.String[]
+		elements:
+		    ==============================================================================
+
+]
+```
+
+As seen from the output, variable types are also resolved and values are interpreted as their types. `String` instances are handled in a specific way and its characters are printed as value. Also complex object are printed as all field names/ types/values of these objects.
+
 4.3.2. Compressed References Finder
 --------
 
