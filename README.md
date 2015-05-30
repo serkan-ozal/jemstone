@@ -91,6 +91,25 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 
 4.3.1. Stack Trace Dumper
 --------
+**Stack Trace Dumper** feature dumps stack trace(s) of specified thread(s) or all threads with more additional informations from usual stack trace such as method frame type (interpreted, compiled or native) and local variable names, types, values in stack. 
+
+One of the way of using **Stack Trace Dumper** feature is using it through `HotSpotServiceabilityAgentManager`:
+- `HotSpotServiceabilityAgentManager.getStackTracesOfCurrentThread()`: Dumps stack trace of caller thread.
+- `HotSpotServiceabilityAgentManager.getStackTraces(String ... threadNames)`: Dumps stack traces of given thread names. If `threadNames` is empty or null, stack traces of all threads are dumped.
+- `HotSpotServiceabilityAgentManager.getStackTraces(int processId, String ... threadNames)`: Dumps stack traces of given thread names on given process with `processId`. If `threadNames` is empty or null, stack traces of all threads are dumped.
+
+All results are returned as `HotSpotSAStackTracerResult`. `HotSpotSAStackTracerResult` instance has stack trace dumps per thread. So all stack trace dumps can be accessed by `HotSpotSAStackTracerResult.getStackTraces()` which returns a `java.util.Map<String, String>` with keys are thread names and values are stack trace dumps or any specific stack trace dump can be accessed via `HotSpotSAStackTracerResult.getStackTrace(String threadName)` which return stack trace dump as `String` of given thread.
+
+The another way of using **Stack Trace Dumper** feature is using it from command line as plugin. Usage format of **Stack Trace Dumper** plugin is:
+```
+tr.com.serkanozal.jemstone.Jemstone 
+	(-i "HotSpot_Stack_Tracer" <process_id> [thread_name]*) 
+	| 
+	(-p tr.com.serkanozal.jemstone.sa.impl.stacktracerHotSpotSAStackTracerPlugin <process_id> [thread_name]*) 
+```
+
+- The `processId` parameter is the id of process to be attached and dumped stack traces of threads on it.
+- The `thread_name` parameter is optional so if it is not specified, all threads are dumped.
 
 4.3.2. Compressed References Finder
 --------
