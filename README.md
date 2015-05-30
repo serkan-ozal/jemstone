@@ -164,7 +164,7 @@ public class HeapSummaryWorker
 }
 ```
 
-As you can see, the implementation doesn't require any parameter (takes `NoHotSpotServiceabilityAgentParameter` which is a predefined static/singleton `HotSpotServiceabilityAgentParameter` instance) and accesses the `sun.jvm.hotspot.runtime.VM` over `HotSpotServiceabilityAgentContext` so gets the `CollectedHeap` instance to access the heap informations via it. Then it calculates the limits and capacity of heap and returns the result as `HotSpotSAKeyValueResult` instance (which is a sub-type or implementation of `HotSpotServiceabilityAgentResult`).
+As you can see, the implementation doesn't require any parameter (takes `NoHotSpotServiceabilityAgentParameter` which is a predefined static/singleton `HotSpotServiceabilityAgentParameter` instance) and accesses the `sun.jvm.hotspot.runtime.VM` over `HotSpotServiceabilityAgentContext` so gets the `CollectedHeap` instance to access the heap informations via it. Then it calculates the limits and capacity of heap and returns the result as `HotSpotSAKeyValueResult` instance (which is a sub-type/implementation of `HotSpotServiceabilityAgentResult`).
 
 Here is the usage of this implementation:
 ``` java
