@@ -199,7 +199,7 @@ One of the way of using **Compressed References Finder** feature is using it thr
 - `HotSpotServiceabilityAgentManager.getCompressedReferences()`: Gets compressed references information of current JVM process.
 - `HotSpotServiceabilityAgentManager.getCompressedReferences(int processId)`: Gets compressed references information of target JVM process specified with `processId`.
 
-All results are returned as `HotSpotSACompressedReferencesResult`. `HotSpotSACompressedReferencesResult` instance has compressed references mode (enabled or disabled), compressed references base address and shift size informations for oops and classes. These values for classes maybe may be different from oops on Java 8+ because since Java 8, there is another class based compressed references configuration then oops based.
+All results are returned as `HotSpotSACompressedReferencesResult`. `HotSpotSACompressedReferencesResult` instance has compressed references mode (enabled or disabled), compressed references base address and shift size informations for oops and classes. These values for **class references** maybe may be different from **object references** on **Java 8+** because since Java 8, there is another **class references** based compressed references configuration then **object references** based. Before **Java 8**, they were all (class references and object references) represented as **oop references**, but since **Java 8**, object references are represented as **oops** and class references are represented as *klass oops*.
 
 The another way of using **Compressed References Finder** feature is using it from command line as plugin. Usage format of **Compressed References Finder** plugin is:
 ```
