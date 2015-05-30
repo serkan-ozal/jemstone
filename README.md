@@ -105,13 +105,13 @@ The another way of using **Stack Trace Dumper** feature is using it from command
 tr.com.serkanozal.jemstone.Jemstone 
 	(-i "HotSpot_Stack_Tracer" <process_id> [thread_name]*) 
 	| 
-	(-p tr.com.serkanozal.jemstone.sa.impl.stacktracerHotSpotSAStackTracerPlugin <process_id> [thread_name]*) 
+	(-p tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerPlugin <process_id> [thread_name]*) 
 ```
 
 - The `processId` parameter is the id of process to be attached and dumped stack traces of threads on it.
 - The `thread_name` parameter is optional so if it is not specified, all threads are dumped.
 
-Here is sample output of **Stack Trace Dumper** feature:
+Here is the sample output of **Stack Trace Dumper** feature:
 ```
 HotSpotSAStackTracerResult [stackTraces=
 - Thread Name: main
@@ -193,6 +193,30 @@ And this is a sample internal usage of this feature: https://github.com/serkan-o
 
 4.3.2. Compressed References Finder
 --------
+**Compressed References Finder** feature finds the compressed references information (such as are compressed-references enabled or not, if enabled what is its base offset and shift size) on the target JVM process (on current or another JVM process). 
+
+One of the way of using **Compressed References Finder** feature is using it through `HotSpotServiceabilityAgentManager`:
+- `HotSpotServiceabilityAgentManager.getCompressedReferences()`: Gets compressed references information of current JVM process.
+- `HotSpotServiceabilityAgentManager.getCompressedReferences(int processId)`: Gets compressed references information of target JVM process specified with `processId`.
+
+All results are returned as `HotSpotSACompressedReferencesResult`. `HotSpotSACompressedReferencesResult` instance has compressed references mode (enabled or disabled), compressed references base address and shift size informations for oops and classes. These values for classes maybe may be different from oops on Java 8+ because since Java 8, there is another class based compressed references configuration then oops based.
+
+The another way of using **Compressed References Finder** feature is using it from command line as plugin. Usage format of **Compressed References Finder** plugin is:
+```
+tr.com.serkanozal.jemstone.Jemstone 
+	(-i ""HotSpot_Compressed_References_Finder" <process_id>) 
+	| 
+	(-p tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesPluginn <process_id>) 
+```
+
+- The `processId` parameter is the id of process to be attached and finding compressed references informations on it.
+
+Here is the sample output of **Compressed References Finder** feature:
+```
+HotSpotSACompressedReferencesResult [addressSize=8, objectAlignment=8, oopSize=4, compressedOopsEnabled=true, narrowOopBase=0, narrowOopShift=3, klassOopSize=4, compressedKlassOopsEnabled=true, narrowKlassBase=0, narrowKlassShift=3]
+```
+
+And this is a sample internal usage of this feature: https://github.com/serkan-ozal/jemstone/blob/master/src/main/java/tr/com/serkanozal/jemstone/Demo.java#L41
 
 5. Roadmap
 ==============
