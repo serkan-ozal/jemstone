@@ -128,13 +128,13 @@ public interface HotSpotServiceabilityAgentWorker<
 
 As seen from the signature of `run` method, there is also another parameter typed `HotSpotServiceabilityAgentContext` which includes some necessary (important or entrance point to HotSpot SA API) instances such as `sun.jvm.hotspot.HotSpotAgent` and `sun.jvm.hotspot.runtime.VM` to be used in executiong logic inside `HotSpotServiceabilityAgentWorker` implementation.
 
-**Common Generic Type Definition: **
+**Common Generic Type Definition:**
 ``` java
-P extends HotSpotServiceabilityAgentParameter
-R extends HotSpotServiceabilityAgentResult
+<P extends HotSpotServiceabilityAgentParameter
+ R extends HotSpotServiceabilityAgentResult>
 ```
 
-`HotSpotServiceabilityAgentWorker` implementations can be worked over `HotSpotServiceabilityAgentManager` with
+`HotSpotServiceabilityAgentWorker` implementations can be worked over `HotSpotServiceabilityAgentManager` with the following methods:
 - `R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass)`
 - `R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param)` 
 - `R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker)`
@@ -146,11 +146,12 @@ Here is sample usecase for implementing and running your custom `HotSpotServicea
 
 ``` java
 public class HeapSummaryWorker
-            implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HotSpotSAKeyValueResult> {
+            implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, 
+                                                        HotSpotSAKeyValueResult> {
 
 	@Override
         public HotSpotSAKeyValueResult run(HotSpotServiceabilityAgentContext context,
-                			   NoHotSpotServiceabilityAgentParameter param) {
+                                           NoHotSpotServiceabilityAgentParameter param) {
             CollectedHeap heap = context.getVM().getUniverse().heap();
             long startAddress = Long.parseLong(heap.start().toString().substring(2), 16);
             long capacity = heap.capacity();
@@ -167,7 +168,17 @@ As you can see, the implementation doesn't require any parameter (takes `NoHotSp
 
 Here is the usage of this implementation:
 ``` java
-hotSpotSAManager.executeOnHotSpotSA(new HeapSummaryWorker());
+HotSpotSAKeyValueResult result = hotSpotSAManager.executeOnHotSpotSA(new HeapSummaryWorker());
+System.out.println(result);
+```
+
+and this is the output from my sample run:
+```
+HotSpotSAKeyValueResult [{
+        endAddress=0x789bc0000, 
+        startAddress=0x77c000000, 
+        capacity=230424576
+}]
 ```
 
 4.2. Plug-in Based Implementation
