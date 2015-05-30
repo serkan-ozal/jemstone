@@ -82,6 +82,93 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 
 4.1. Worker Based Implementation
 --------------
+The execution unit from the **Jemstone** perspective is `HotSpotServiceabilityAgentWorker`. **Jemstone**'s HotSpot SA engine gets the parameter (`HotSpotServiceabilityAgentParameter`) if required and passes it to the `HotSpotServiceabilityAgentWorker` implementation to be used as execution input. Then gets the result (`HotSpotServiceabilityAgentResult`) and returns it to caller.
+
+Here is the definition of the `HotSpotServiceabilityAgentWorker`:
+``` java
+/**
+ * <p>
+ * Interface for workers which do some stuff via HotSpot Serviceability Agent
+ * API on HotSpot internals.
+ * </p>
+ * 
+ * <p>
+ * {@link HotSpotServiceabilityAgentWorker} implementations must be fully
+ * (including its fields) serializable. So if there is any field will not be
+ * serialized, it must be ignored or serialization logic must be customized.
+ * Please see <a href="www.oracle.com/technetwork/articles/java/javaserial-1536170.html">here</a>
+ * for more details.
+ * </p>
+ *
+ * @param <P> type of the {@link HotSpotServiceabilityAgentParameter} parameter
+ * @param <R> type of the {@link HotSpotServiceabilityAgentResult} result
+ *
+ * @see HotSpotServiceabilityAgentResult
+ * 
+ * @author Serkan Ozal
+ */
+public interface HotSpotServiceabilityAgentWorker<
+            P extends HotSpotServiceabilityAgentParameter,
+            R extends HotSpotServiceabilityAgentResult>
+        extends Serializable {
+
+    /**
+     * Runs {@link HotSpotServiceabilityAgentWorker}'s own logic over 
+     * HotSpot Serviceability Agent.
+     * 
+     * @param context the context to hold the required HotSpot SA instances to be used
+     * @param param   the {@link HotSpotServiceabilityAgentParameter} instance 
+     *                to be used by this worker as parameter 
+     * @return the {@link HotSpotServiceabilityAgentResult} instance as result
+     */
+    R run(HotSpotServiceabilityAgentContext context, P param);
+
+}
+```
+
+As seen from the signature of `run` method, there is also another parameter typed `HotSpotServiceabilityAgentContext` which includes some necessary (important or entrance point to HotSpot SA API) instances such as `sun.jvm.hotspot.HotSpotAgent` and `sun.jvm.hotspot.runtime.VM` to be used in executiong logic inside `HotSpotServiceabilityAgentWorker` implementation.
+
+**Common Generic Type Definition: **
+``` java
+P extends HotSpotServiceabilityAgentParameter
+R extends HotSpotServiceabilityAgentResult
+```
+
+`HotSpotServiceabilityAgentWorker` implementations can be worked over `HotSpotServiceabilityAgentManager` with
+- `R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass)`
+- `R executeOnHotSpotSA(Class<? extends HotSpotServiceabilityAgentWorker<P, R>> workerClass, P param)` 
+- `R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker)`
+- `R executeOnHotSpotSA(HotSpotServiceabilityAgentWorker<P, R> worker, P param)`
+
+For more useful you method for `HotSpotServiceabilityAgentWorker` usage, you can see [HotSpotServiceabilityAgentManager](https://github.com/serkan-ozal/jemstone/blob/master/src/main/java/tr/com/serkanozal/jemstone/sa/HotSpotServiceabilityAgentManager.java) definition for more details.
+
+Here is sample usecase for implementing and running your custom `HotSpotServiceabilityAgentWorker` implementation on top of **Jemstone**. In this example, there is a `HotSpotServiceabilityAgentWorker` implementation that calculates limits (start and finish) and capacity of heap of target JVM.
+
+``` java
+public class HeapSummaryWorker
+            implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HotSpotSAKeyValueResult> {
+
+	@Override
+        public HotSpotSAKeyValueResult run(HotSpotServiceabilityAgentContext context,
+                			   NoHotSpotServiceabilityAgentParameter param) {
+            CollectedHeap heap = context.getVM().getUniverse().heap();
+            long startAddress = Long.parseLong(heap.start().toString().substring(2), 16);
+            long capacity = heap.capacity();
+            return new HotSpotSAKeyValueResult().
+                            addResult("startAddress", "0x" + Long.toHexString(startAddress)).
+                            addResult("endAddress", "0x" + Long.toHexString(startAddress + capacity)).
+                            addResult("capacity", capacity);
+        }
+
+}
+```
+
+As you can see, the implementation doesn't require any parameter (takes `NoHotSpotServiceabilityAgentParameter` which is a predefined static/singleton `HotSpotServiceabilityAgentParameter` instance) and accesses the `sun.jvm.hotspot.runtime.VM` over `HotSpotServiceabilityAgentContext` so gets the `CollectedHeap` instance to access the heap informations via it. Then it calculates the limits and capacity of heap and returns the result as `HotSpotSAKeyValueResult` instance (which is a sub-type or implementation of `HotSpotServiceabilityAgentResult`).
+
+Here is the usage of this implementation:
+``` java
+hotSpotSAManager.executeOnHotSpotSA(new HeapSummaryWorker());
+```
 
 4.2. Plug-in Based Implementation
 --------------
