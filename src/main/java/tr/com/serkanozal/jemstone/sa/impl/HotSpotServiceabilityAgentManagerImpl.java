@@ -37,6 +37,8 @@ import java.nio.BufferOverflowException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -959,6 +961,16 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     @Override
     public void deregisterPlugin(String id) {
         pluginMap.remove(id);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @Override
+    public <P extends HotSpotServiceabilityAgentPlugin>
+    Collection<P> listPlugins() {
+        return (Collection<P>) Collections.unmodifiableCollection(pluginMap.values());
     }
     
     @SuppressWarnings("rawtypes")

@@ -16,6 +16,8 @@
 
 package tr.com.serkanozal.jemstone.sa;
 
+import java.util.Collection;
+
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesResult;
 import tr.com.serkanozal.jemstone.sa.impl.compressedrefs.HotSpotSACompressedReferencesWorker;
 import tr.com.serkanozal.jemstone.sa.impl.stacktracer.HotSpotSAStackTracerResult;
@@ -176,6 +178,15 @@ public interface HotSpotServiceabilityAgentManager {
      * @param id the id of {@link HotSpotServiceabilityAgentPlugin} to be deregistered
      */
     void deregisterPlugin(String id);
+    
+    /**
+     * Lists registered {@link HotSpotServiceabilityAgentPlugin} implementations.
+     * 
+     * @return the registered {@link HotSpotServiceabilityAgentPlugin} implementations
+     */
+    @SuppressWarnings("rawtypes")
+    <P extends HotSpotServiceabilityAgentPlugin>
+    Collection<P> listPlugins();
     
     /**
      * Runs the {@link HotSpotServiceabilityAgentPlugin} has specified <code>id</code>.

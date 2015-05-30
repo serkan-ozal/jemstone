@@ -38,7 +38,7 @@ public class HotSpotSAStackTracerPlugin
                 JavaVersion.ALL_VERSIONS 
             };
     private static final String USAGE = 
-            "Usage: " + Jemstone.class.getName() + " " + 
+            Jemstone.class.getName() + " " + 
                 "(-i " + "\"" + PLUGIN_ID + "\"" + " <process_id> [thread_name]*)" + 
                 " | " + 
                 "(-p " + HotSpotSAStackTracerPlugin.class.getName() + " <process_id> [thread_name]*)" + 

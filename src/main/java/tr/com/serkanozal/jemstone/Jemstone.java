@@ -137,6 +137,8 @@ public final class Jemstone {
                         handlePluginInvalidArgumentException(e,plugin);
                     }    
                 } 
+            } else if ("-l".equals(args[0])) {
+                printPlugins();
             } else if ("-h".equals(args[0]) || "-help".equals(args[0])) {
                 printUsage(false);
             } else {
@@ -170,7 +172,19 @@ public final class Jemstone {
         ps.println("Usage: " + Jemstone.class.getName() + " " + 
                 "(-i <plugin_id> [arg]*)" + 
                 " | " + 
-                "(-p <plugin_class_name> [arg]*)");
+                "(-p <plugin_class_name> [arg]*)" +
+                " | " + 
+                "(-l)" + 
+                " | " + 
+                "(-h | -help)");
+    }
+    
+    @SuppressWarnings("rawtypes")
+    private static void printPlugins() {
+        for (HotSpotServiceabilityAgentPlugin plugin : hotSpotSAManager.listPlugins()) {
+            System.out.println("* Plugin Id: " + plugin.getId());
+            System.out.println("\tUsage:\n\t\t" + plugin.getUsage().replace("\n", "\n\t\t"));
+        }
     }
     
 }

@@ -17,9 +17,12 @@
 package tr.com.serkanozal.jemstone;
 
 import sun.jvm.hotspot.gc_interface.CollectedHeap;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentConfig;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentContext;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentManager;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentParameter.NoHotSpotServiceabilityAgentParameter;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentPlugin;
+import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentResultProcessor;
 import tr.com.serkanozal.jemstone.sa.HotSpotServiceabilityAgentWorker;
 import tr.com.serkanozal.jemstone.sa.impl.HotSpotSAKeyValueResult;
 
@@ -47,6 +50,10 @@ public class Demo {
         // ///////////////////////////////////////////////////////////////////////////////
 
         System.out.println(hotSpotSAManager.executeOnHotSpotSA(new HeapSummaryWorker()));
+        
+        // ///////////////////////////////////////////////////////////////////////////////
+        
+        System.out.println(hotSpotSAManager.runPlugin(HeapSummaryPlugin.PLUGIN_ID));
         
         // ///////////////////////////////////////////////////////////////////////////////
     }
@@ -103,7 +110,7 @@ public class Demo {
     }
 
     @SuppressWarnings("serial")
-    static class HeapSummaryWorker
+    public static class HeapSummaryWorker
             implements HotSpotServiceabilityAgentWorker<NoHotSpotServiceabilityAgentParameter, HotSpotSAKeyValueResult> {
 
         @Override
@@ -118,6 +125,74 @@ public class Demo {
                             addResult("capacity", capacity);
         }
 
+    }
+    
+    public static class HeapSummaryPlugin 
+            implements HotSpotServiceabilityAgentPlugin<NoHotSpotServiceabilityAgentParameter, 
+                                                        HotSpotSAKeyValueResult, 
+                                                        HeapSummaryWorker> {
+        
+        public static final String PLUGIN_ID = "HotSpot_Heap_Summarizer";
+        
+        private static final JavaVersion[] SUPPORTED_JAVA_VERSIONS = 
+                new JavaVersion[] { 
+                    JavaVersion.ALL_VERSIONS 
+                };
+        
+        private static final String USAGE = 
+                Jemstone.class.getName() + " " + 
+                    "(-i " + "\"" + PLUGIN_ID + "\"" + " <process_id>)" + 
+                    " | " + 
+                    "(-p " + HeapSummaryPlugin.class.getName() + " <process_id>)";
+        
+        private int processId = HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET;
+                    
+        @Override
+        public String getId() {
+            return PLUGIN_ID;
+        }
+
+        @Override
+        public String getUsage() {
+            return USAGE;
+        }
+
+        @Override
+        public JavaVersion[] getSupportedJavaVersions() {
+            return SUPPORTED_JAVA_VERSIONS;
+        }
+
+        @Override
+        public HeapSummaryWorker getWorker() {
+            return new HeapSummaryWorker();
+        }
+
+        @Override
+        public NoHotSpotServiceabilityAgentParameter getParamater(String[] args) {
+            // No need to parameter
+            return null;
+        }
+
+        @Override
+        public HotSpotServiceabilityAgentConfig getConfig() {
+            if (processId != HotSpotServiceabilityAgentConfig.CONFIG_NOT_SET) {
+                HotSpotServiceabilityAgentConfig config = new HotSpotServiceabilityAgentConfig();
+                // Only set "process id" and don't touch others ("pipeline size", "timeout").
+                // So default configurations will be used for them ("pipeline size", "timeout").
+                config.setProcessId(processId);
+                return config;
+            } else {
+                // Use default configuration, so just returns "null"
+                return null;
+            }
+        }
+
+        @Override
+        public HotSpotServiceabilityAgentResultProcessor<HotSpotSAKeyValueResult> getResultProcessor() {
+            // Use default result processor (print to console)
+            return null;
+        }
+        
     }
 
 }
