@@ -213,7 +213,18 @@ tr.com.serkanozal.jemstone.Jemstone
 
 Here is the sample output of **Compressed References Finder** feature:
 ```
-HotSpotSACompressedReferencesResult [addressSize=8, objectAlignment=8, oopSize=4, compressedOopsEnabled=true, narrowOopBase=0, narrowOopShift=3, klassOopSize=4, compressedKlassOopsEnabled=true, narrowKlassBase=0, narrowKlassShift=3]
+HotSpotSACompressedReferencesResult [
+	addressSize=8, 
+	objectAlignment=8, 
+	oopSize=4, 
+	compressedOopsEnabled=true, 
+	narrowOopBase=0, 
+	narrowOopShift=3, 
+	klassOopSize=4, 
+	compressedKlassOopsEnabled=true, 
+	narrowKlassBase=0, 
+	narrowKlassShift=3
+]
 ```
 
 And this is a sample internal usage of this feature: https://github.com/serkan-ozal/jemstone/blob/master/src/main/java/tr/com/serkanozal/jemstone/Demo.java#L41
