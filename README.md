@@ -1,8 +1,6 @@
 # Jemstone
 Hidden Gems of JVM/JDK
 
-**P.S:** On **UNIX** and especially **MaxOSX** operations systems, it may require running the application with `sudo` for necessary user privileges. 
-
 1. What is Jemstone?
 ==============
 **Jemstone** is a platform for running **HotSpot Serviceability Agent API** based implementations on current application (JVM process) or other application (other JVM process). 
@@ -18,7 +16,7 @@ For more informations about HotSpot Serviceability Agent, please see the followi
 * [The HotSpot™ Serviceability Agent: An out-of-process high level debugger for a Java™ virtual machine](https://www.usenix.org/legacy/publications/library/proceedings/jvm01/full_papers/russell/russell_html/index.html)
 * [Serviceability in HotSpot](http://openjdk.java.net/groups/hotspot/docs/Serviceability.html)
 
-
+Please see [Usage](https://github.com/serkan-ozal/jemstone#4-usage) section for more details.
 
 2. Installation
 ==============
@@ -79,6 +77,7 @@ You can change `jemstone.version` to any existing **Jemstone** library version.
 
 4. Usage
 ==============
+**P.S:** On **UNIX** and especially on **MaxOSX** operations systems, it may require running the application with `sudo` for necessary user privileges to attach the target JVM process. 
 
 4.1. Worker Based Implementation
 --------------
@@ -564,7 +563,15 @@ tr.com.serkanozal.jemstone.Jemstone
 - `-l`: Lists the registered plugins.
 - `-h` or `-help`: Prints the usage of **Jemstone**.
 
-5. Roadmap
+5. Contribution
+==============
+- If you think that there is a bug about **Jemstone**, please feel create a `bug` labelled issue ticket [here](https://github.com/serkan-ozal/jemstone/issues/new)
+- Even if you have a new feature or enhancement request for **Jemstone**, you can create an `enhancement` labelled issue at [here](https://github.com/serkan-ozal/jemstone/issues/new)
+- Or if you have a question about **Jemstone**, you can aslo create a `question` labelled issue at [here](https://github.com/serkan-ozal/jemstone/issues/new)
+- I am glad to get your work into **Jemstone** so if you have done some stuff (fix, enhancement or new feature) about **Jemstone** and want to put them into **Jemstone**, you can send a pull request from your repository.
+- I want to encourage people to use and work on **Jemstone**, so I have added plugin support and created another repository named [Jemstone-Plugin](https://github.com/serkan-ozal/jemstone-plugin) for plugins. I would be appreciated if you send a pull request about your **Jemstone** plugin to [Jemstone-Plugin](https://github.com/serkan-ozal/jemstone-plugin) repository. 
+
+6. Roadmap
 ==============
 
 - Built-in **Heap Dump** support/implementation
