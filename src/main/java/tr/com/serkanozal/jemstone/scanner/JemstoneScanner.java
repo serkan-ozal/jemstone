@@ -25,23 +25,26 @@ import java.util.Set;
  * @author Serkan Ozal
  */
 public interface JemstoneScanner {
-	
+
     /**
-     * Scans the classes annotated with the specified <code>annotationClass</code> annotation 
-     * at classpath and gets them.
+     * Scans the classes annotated with the specified
+     * <code>annotationClass</code> annotation at classpath and gets them.
      * 
      * @param annotationClass the annotation that requested classes must tagged with it
-     * @return the classes annotated with the specified <code>annotationClass</code> annotation
+     * @return the classes annotated with the specified
+     *         <code>annotationClass</code> annotation
      */
-	Set<Class<?>> getAnnotatedClasses(Class<? extends Annotation> annotationClass);
-	
-	/**
-	 * Scans the classes sub-type of the the specified <code>superClass</code> class (or interface)
-	 * at classpath and gets them.
-	 * 
-	 * @param superClass the super class (or interface) that requested classes must be a sub-type of with it
-	 * @return the classes sub-type of the the specified <code>superClass</code> class (or interface)
-	 */
-	<T> Set<Class<? extends T>> getSubTypedClasses(Class<T> superClass);
-	
+    Set<Class<?>> getAnnotatedClasses(Class<? extends Annotation> annotationClass);
+
+    /**
+     * Scans the classes sub-type of the the specified <code>superClass</code>
+     * class (or interface) at classpath and gets them.
+     * 
+     * @param superClass the super class (or interface) that requested classes must be
+     *                   a sub-type of with it
+     * @return the classes sub-type of the the specified <code>superClass</code>
+     *         class (or interface)
+     */
+    <T> Set<Class<? extends T>> getSubTypedClasses(Class<T> superClass);
+
 }

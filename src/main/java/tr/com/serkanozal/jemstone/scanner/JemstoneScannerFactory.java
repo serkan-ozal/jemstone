@@ -24,30 +24,29 @@ import tr.com.serkanozal.jemstone.scanner.impl.JemstoneScannerImpl;
  * @author Serkan Ozal
  */
 public final class JemstoneScannerFactory {
-	
-	private static JemstoneScanner jemstoneScanner = new JemstoneScannerImpl();
-	
-	private JemstoneScannerFactory() {
-		
-	}
-	
-	/**
-	 * Gets the global {@link JemstoneScanner} implementation.
-	 * 
-	 * @return the global {@link JemstoneScanner} implementation
-	 */
-	public static JemstoneScanner getJemstoneScanner() {
+
+    private static JemstoneScanner jemstoneScanner = new JemstoneScannerImpl();
+
+    private JemstoneScannerFactory() {
+
+    }
+
+    /**
+     * Gets the global {@link JemstoneScanner} implementation.
+     * 
+     * @return the global {@link JemstoneScanner} implementation
+     */
+    public static JemstoneScanner getJemstoneScanner() {
         return jemstoneScanner;
     }
-	
-	/**
-	 * Sets the global {@link JemstoneScanner} implementation.
-	 * 
-	 * @param jemstoneScanner the new global {@link JemstoneScanner} 
-	 *                        implementation to be set
-	 */
-	public static void setJemstoneScanner(JemstoneScanner jemstoneScanner) {
+
+    /**
+     * Sets the global {@link JemstoneScanner} implementation.
+     * 
+     * @param jemstoneScanner the new global {@link JemstoneScanner} implementation to be set
+     */
+    public static void setJemstoneScanner(JemstoneScanner jemstoneScanner) {
         JemstoneScannerFactory.jemstoneScanner = jemstoneScanner;
     }
-	
+
 }

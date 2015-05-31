@@ -31,26 +31,26 @@ import tr.com.serkanozal.jemstone.util.ClasspathUtil;
  * @author Serkan Ozal
  */
 public class JemstoneScannerImpl implements JemstoneScanner {
-	
-	private final Reflections reflections = 
-			new Reflections(
-					new ConfigurationBuilder().
-							setUrls(ClasspathUtil.getClasspathUrls()));
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public Set<Class<?>> getAnnotatedClasses(Class<? extends Annotation> annotationClass) {
-	    return reflections.getTypesAnnotatedWith(annotationClass);
-	}
-	
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
+    private final Reflections reflections = 
+            new Reflections(
+                    new ConfigurationBuilder().
+                            setUrls(ClasspathUtil.getClasspathUrls()));
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Set<Class<?>> getAnnotatedClasses(Class<? extends Annotation> annotationClass) {
+        return reflections.getTypesAnnotatedWith(annotationClass);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public <T> Set<Class<? extends T>> getSubTypedClasses(Class<T> superClass) {
-	    return reflections.getSubTypesOf(superClass);
-	}
-	
+        return reflections.getSubTypesOf(superClass);
+    }
+
 }
