@@ -33,8 +33,13 @@ import tr.com.serkanozal.jemstone.sa.impl.HotSpotSAKeyValueResult;
  */
 public class Demo {
 
-    private static final HotSpotServiceabilityAgentManager hotSpotSAManager = 
-            Jemstone.getHotSpotServiceabilityAgentManager();
+    private static final HotSpotServiceabilityAgentManager hotSpotSAManager;
+    
+    static {
+        // Don't look at the classpath for sa-jdi.jar
+        System.setProperty("jemstone.hotspotsa.skipClasspathLookup", "true");
+        hotSpotSAManager = Jemstone.getHotSpotServiceabilityAgentManager();
+    }
     
     public static void main(String[] args) {
         System.out.println(hotSpotSAManager.details());

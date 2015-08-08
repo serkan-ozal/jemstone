@@ -88,7 +88,6 @@ import tr.com.serkanozal.jemstone.util.ClasspathUtil;
  *
  * @author Serkan Ozal
  */
-@SuppressWarnings("restriction")
 public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabilityAgentManager {
 
     private static final String SKIP_HOTSPOT_SA_INIT_FLAG = "jemstone.hotspotsa.skipHotspotSAInit";
@@ -202,9 +201,10 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                             File hotspotAgentLib = new File(
                                     normalizePath(System.getProperty("java.home")) + "/../lib/sa-jdi.jar");
                             if (hotspotAgentLib.exists()) {
-                                classpathForAgentProc = currentClasspath + File.pathSeparator +
-                                                        normalizePath(hotspotAgentLib.getAbsolutePath());
-                                
+                                // Add JDK home directory based sa-jdi.jar to the head of the classpath 
+                                // to override the other possible sa-jdi.jar on the classpath
+                                classpathForAgentProc = normalizePath(hotspotAgentLib.getAbsolutePath()) + 
+                                                        File.pathSeparator + currentClasspath;
                                 skipLookups = true;
                             } else {
                                 tryToLookupAtAllJar = !Boolean.getBoolean(SKIP_ALL_JAR_LOOKUP_FLAG);
@@ -1158,8 +1158,9 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     @SuppressWarnings("unchecked")
     @Override
     public HotSpotSACompressedReferencesResult getCompressedReferences() {
-        return executeOnHotSpotSA(createWorkerInstance(HotSpotSACompressedReferencesWorker.class), 
-                                  HotSpotServiceabilityAgentParameter.VOID);
+        return (HotSpotSACompressedReferencesResult)
+                executeOnHotSpotSA(createWorkerInstance(HotSpotSACompressedReferencesWorker.class), 
+                                   HotSpotServiceabilityAgentParameter.VOID);
     }
     
     /**
@@ -1168,7 +1169,8 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
     @SuppressWarnings("unchecked")
     @Override
     public HotSpotSACompressedReferencesResult getCompressedReferences(int processId) {
-        return executeOnHotSpotSA(createWorkerInstance(HotSpotSACompressedReferencesWorker.class), 
+        return (HotSpotSACompressedReferencesResult)
+               executeOnHotSpotSA(createWorkerInstance(HotSpotSACompressedReferencesWorker.class), 
                                   HotSpotServiceabilityAgentParameter.VOID,
                                   timeout, pipelineSize, processId);
     }

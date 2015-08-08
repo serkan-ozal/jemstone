@@ -33,7 +33,6 @@ import sun.misc.Resource;
  * 
  * @author Serkan Ozal
  */
-@SuppressWarnings({ "restriction" })
 public class HotSpotJvmAwareSaJdiClassLoader extends URLClassLoader {
 
     public static final String URL_CLASSPATH_VM_ARGUMENT_NAME = "url.classpath";
