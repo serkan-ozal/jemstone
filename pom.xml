@@ -3,7 +3,7 @@
   	<modelVersion>4.0.0</modelVersion>
   	<groupId>tr.com.serkanozal</groupId>
   	<artifactId>jemstone</artifactId>
-  	<version>1.0</version>
+  	<version>1.1</version>
     <name>Jemstone</name>
     <url>https://github.com/serkan-ozal/jemstone</url>
     
@@ -11,15 +11,15 @@
         
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         
-        <source.compiler.version>1.7</source.compiler.version>
-        <target.compiler.version>1.7</target.compiler.version>
+        <source.compiler.version>1.8</source.compiler.version>
+        <target.compiler.version>1.8</target.compiler.version>
         
         <maven.compiler.plugin.version>2.3.2</maven.compiler.plugin.version>
         <maven.resources.plugin.version>2.4</maven.resources.plugin.version>
         <maven.surefire.plugin.version>2.9</maven.surefire.plugin.version>
         <maven.deploy.plugin.version>2.6</maven.deploy.plugin.version>
         
-        <sa_jdi.version>1.7</sa_jdi.version> 
+        <sa_jdi.version>1.8</sa_jdi.version> 
         <sa-jdi-all.version>1.0</sa-jdi-all.version> 
         <reflections.version>0.9.10</reflections.version>
         <junit.version>4.11</junit.version>
@@ -90,7 +90,7 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-                <filtering>true</filtering>
+                <filtering>false</filtering>
             </resource>
         </resources>
     </build>
@@ -119,6 +119,13 @@
             <artifactId>junit</artifactId>
             <version>${junit.version}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.cache</groupId>
+            <artifactId>cache-api</artifactId>
+            <version>1.0.0</version>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
 	</dependencies>
 	

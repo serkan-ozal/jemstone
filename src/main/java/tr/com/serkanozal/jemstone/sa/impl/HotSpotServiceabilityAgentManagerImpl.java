@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.io.Reader;
 import java.io.Serializable;
@@ -573,9 +574,10 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                     throw error;
                 } else {
                     int pipelineDataSize = response.getPipelineDataSize();
+                    HotSpotServiceabilityAgentResultWrapper<R> resultWrapper = null;
                     if (pipelineDataSize == HotSpotServiceabilityAgentResponse.PIPELINE_DATA_NOT_USED) {
                         // If pipeline has not been used, get result directly over response
-                        return response.getResult();
+                        resultWrapper = response.getResultWrapper();
                     } else {
                         // If pipeline has been used, read data as byte[] from pipeline and deserialize it to result
                         byte[] data = null;
@@ -586,10 +588,21 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                             data = new byte[pipelineDataSize];
                             pipelineBuffer.get(data);
                         }
-                        return deserializeObject(data);
+                        resultWrapper = deserializeObject(data);
                     }
+                    
+                    // Print standard output content if it is exist
+                    if (resultWrapper.getStdOut() != null) {
+                        System.out.print(resultWrapper.getStdOut());
+                    }
+                        
+                    // Print standard error content if it is exist
+                    if (resultWrapper.getStdErr() != null) {
+                        System.err.print(resultWrapper.getStdErr());
+                    }
+                        
+                    return resultWrapper.getResult();
                 }
-                
             } else {
                 return null;
             }
@@ -709,30 +722,30 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
 
         private static final int PIPELINE_DATA_NOT_USED = -1;
         
-        private final R result;
+        private final HotSpotServiceabilityAgentResultWrapper<R> resultWrapper;
         private final Throwable error;
         private final int pipelineDataSize;
 
-        private HotSpotServiceabilityAgentResponse(R result) {
-            this.result = result;
+        private HotSpotServiceabilityAgentResponse(HotSpotServiceabilityAgentResultWrapper<R> resultWrapper) {
+            this.resultWrapper = resultWrapper;
             this.error = null;
             this.pipelineDataSize = PIPELINE_DATA_NOT_USED;
         }
 
         private HotSpotServiceabilityAgentResponse(Throwable error) {
-            this.result = null;
+            this.resultWrapper = null;
             this.error = error;
             this.pipelineDataSize = PIPELINE_DATA_NOT_USED;
         }
         
         private HotSpotServiceabilityAgentResponse(int pipelineDataSize) {
-            this.result = null;
+            this.resultWrapper = null;
             this.error = null;
             this.pipelineDataSize = pipelineDataSize;
         }
 
-        public R getResult() {
-            return result;
+        public HotSpotServiceabilityAgentResultWrapper<R> getResultWrapper() {
+            return resultWrapper;
         }
 
         public Throwable getError() {
@@ -744,11 +757,58 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
         }
 
     }
+    
+    /**
+     * Represents a wrapper object from HotSpot agent process by holding 
+     * result, standard output and standard error contents.
+     */
+    @SuppressWarnings("serial")
+    private static class HotSpotServiceabilityAgentResultWrapper<R extends HotSpotServiceabilityAgentResult> 
+            implements Serializable {
+        
+        private final R result;
+        private String stdOut;
+        private String stdErr;
+        
+        private HotSpotServiceabilityAgentResultWrapper(R result) {
+            this.result = result;
+        }
+        
+        public R getResult() {
+            return result;
+        }
+        
+        public String getStdOut() {
+            return stdOut;
+        }
+        
+        public void setStdOut(String stdOut) {
+            this.stdOut = stdOut;
+        }
+        
+        public String getStdErr() {
+            return stdErr;
+        }
+        
+        public void setStdErr(String stdErr) {
+            this.stdErr = stdErr;
+        }
+        
+    }
 
     @SuppressWarnings({ "unchecked", "resource" })
     public static 
     <P extends HotSpotServiceabilityAgentParameter, R extends HotSpotServiceabilityAgentResult> 
-    void main(final String[] args) {
+    void main(final String[] args) {  
+        PrintStream originalStdOutStream = System.out;
+        ByteArrayOutputStream stdOutOutputStream = new ByteArrayOutputStream();
+        PrintStream stdOutStream = new PrintStream(stdOutOutputStream);
+        System.setOut(stdOutStream);
+        
+        ByteArrayOutputStream stdErrOutputStream = new ByteArrayOutputStream();
+        PrintStream stdErrStream = new PrintStream(stdErrOutputStream);
+        System.setErr(stdErrStream);
+        
         HotSpotAgent hotSpotAgent = null;
         VM vm = null;
         HotSpotServiceabilityAgentResponse<R> response = null;
@@ -809,12 +869,28 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                     // Execute worker and gets its result
                     final R result = worker.run(new HotSpotServiceabilityAgentContext(hotSpotAgent, vm), param);
                     
+                    // Wrap the result
+                    final HotSpotServiceabilityAgentResultWrapper<R> resultWrapper = 
+                            new HotSpotServiceabilityAgentResultWrapper<R>(result);
+                    
+                    // Insert standard output content to result wrapper if there is
+                    byte[] stdOutData = stdOutOutputStream.toByteArray();
+                    if (stdOutData != null && stdOutData.length > 0) {
+                        resultWrapper.setStdOut(new String(stdOutData));
+                    }
+                    
+                    // Insert standard error content to result wrapper if there is
+                    byte[] stdErrData = stdErrOutputStream.toByteArray();
+                    if (stdErrData != null && stdErrData.length > 0) {
+                        resultWrapper.setStdErr(new String(stdErrData));
+                    }
+                    
                     // Serialize result
-                    byte[] resultData = serializeObject(result);
+                    byte[] resultData = serializeObject(resultWrapper);
                     
                     // Create a response with size of result
                     response = new HotSpotServiceabilityAgentResponse<R>(resultData.length);
-                    
+
                     // Write result to pipeline
                     pipelineBuffer.put(resultData);
                     pipelineBuffer.force();
@@ -831,7 +907,7 @@ public class HotSpotServiceabilityAgentManagerImpl implements HotSpotServiceabil
                     // Send response back to caller process over standard output
                     out.writeObject(response);
                     out.flush();
-                    System.out.write(bos.toByteArray());
+                    originalStdOutStream.write(bos.toByteArray());
                 } catch (IOException e) {
                     // There is nothing to do, so just ignore
                 }
